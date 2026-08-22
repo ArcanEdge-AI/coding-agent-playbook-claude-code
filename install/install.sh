@@ -170,7 +170,9 @@ build_current_manifest() {
   local root src_dir src rel hash
 
   printf '# coding-agent-playbook-claude-code managed files v1\n' > "$output"
-  for root in references agents skills; do
+  # Alphabetical root order, matching install.ps1's Sort-Object Root, Path, so
+  # both installers write byte-identical manifests.
+  for root in agents references skills; do
     case "$root" in
       references) src_dir="$REFERENCES_DIR" ;;
       agents) src_dir="$AGENTS_DIR" ;;

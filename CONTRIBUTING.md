@@ -65,6 +65,7 @@ Several rules here depend on documented Claude Code behavior. An earlier revisio
 CI runs the automated checks. Run them locally first with `bash scripts/validate.sh`.
 
 - `bash -n install/install.sh` passes, and a full-mode install into a temporary `CLAUDE_CONFIG_DIR` succeeds and exits 0.
+- With `pwsh` available, `install.sh` and `install.ps1` produce a byte-identical Claude Code home in both modes. CI checks this; `scripts/validate.sh` skips it when `pwsh` is absent.
 - Markdown fenced code blocks are balanced, and every repository path referenced in Markdown exists.
 - `SKILL.md` files include `name` and `description` frontmatter.
 - `agents/*.md` include `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`; every `model` is `haiku`.

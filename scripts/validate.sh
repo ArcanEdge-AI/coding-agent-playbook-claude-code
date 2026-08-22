@@ -132,6 +132,33 @@ else
   pass "installer exits non-zero when a managed file is missing"
 fi
 
+echo "== cross-installer parity (skipped without pwsh) =="
+if command -v pwsh >/dev/null 2>&1; then
+  # Both installers must produce a byte-identical Claude Code home. They have
+  # drifted before: PowerShell kept the source file's trailing newline (an extra
+  # blank line before the end marker) and sorted the manifest case-insensitively
+  # while the shell installer sorts byte-wise, so each rewrote the other's files.
+  for mode in full support-only; do
+    sh_home="$TMP_HOME/parity-sh-$mode"
+    ps_home="$TMP_HOME/parity-ps-$mode"
+    if [[ "$mode" == "full" ]]; then
+      CLAUDE_CONFIG_DIR="$sh_home" bash install/install.sh --full >/dev/null 2>&1
+      CLAUDE_CONFIG_DIR="$ps_home" pwsh -NoProfile -File install/install.ps1 -Full >/dev/null 2>&1
+    else
+      CLAUDE_CONFIG_DIR="$sh_home" bash install/install.sh --support-only >/dev/null 2>&1
+      CLAUDE_CONFIG_DIR="$ps_home" pwsh -NoProfile -File install/install.ps1 -SupportOnly >/dev/null 2>&1
+    fi
+    if diff -r "$sh_home" "$ps_home" >/dev/null 2>&1; then
+      pass "installers agree byte-for-byte ($mode mode)"
+    else
+      fail "install.sh and install.ps1 produce different output ($mode mode)"
+      diff -r "$sh_home" "$ps_home" 2>&1 | head -20
+    fi
+  done
+else
+  echo "skip  pwsh not installed; CI runs this check"
+fi
+
 echo
 if (( FAILURES > 0 )); then
   echo "$FAILURES check(s) failed."

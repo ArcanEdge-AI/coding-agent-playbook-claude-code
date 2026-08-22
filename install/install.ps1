@@ -155,7 +155,8 @@ function Get-CurrentManifestEntries {
     }
   }
 
-  return @($Entries | Sort-Object Root, Path)
+  # Order does not matter here; Write-InstallManifest sorts the emitted lines.
+  return @($Entries)
 }
 
 function Read-InstallManifest {
@@ -258,10 +259,16 @@ function Retire-StaleManagedFiles {
 function Write-InstallManifest {
   param([array]$Entries, [string]$Path)
 
-  $Lines = @('# coding-agent-playbook-claude-code managed files v1')
-  foreach ($Entry in $Entries) {
-    $Lines += "$($Entry.Root)`t$($Entry.Path)`t$($Entry.Hash)"
+  # Sort ordinally (byte order) to match install.sh's `LC_ALL=C sort`.
+  # PowerShell's Sort-Object is case-insensitive and culture-aware, which would
+  # place "model-routing.md" before "README.md" while the shell installer does
+  # the reverse — leaving the two installers writing different manifests for
+  # identical inputs, and each rewriting the other's file on every run.
+  $Rows = [string[]]@($Entries | ForEach-Object { "$($_.Root)`t$($_.Path)`t$($_.Hash)" })
+  if ($Rows.Count -gt 1) {
+    [System.Array]::Sort($Rows, [System.StringComparer]::Ordinal)
   }
+  $Lines = @('# coding-agent-playbook-claude-code managed files v1') + $Rows
   $Content = ($Lines -join "`n") + "`n"
 
   if (Test-Path -LiteralPath $Path -PathType Leaf) {
@@ -305,7 +312,9 @@ function AddOrReplace-PlaybookSection {
   $Parent = Split-Path -Parent $Target
   $Existing = ""
   $Newline = "`n"
-  $NormalizedBody = ($Body -replace "`r`n", "`n") -replace "`r", "`n"
+  # Trim trailing newlines so the section matches install.sh, whose $(cat ...)
+  # strips them. Otherwise a blank line accumulates before the end marker.
+  $NormalizedBody = (($Body -replace "`r`n", "`n") -replace "`r", "`n").TrimEnd("`n")
 
   if (Test-Path -LiteralPath $Target -PathType Leaf) {
     $Existing = Get-Content -LiteralPath $Target -Raw

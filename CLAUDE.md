@@ -71,6 +71,7 @@ Automated checks (CI enforces all of these):
 - No bundled agent sets `isolation: worktree`.
 - Fenced code blocks are balanced, and every repository path referenced in Markdown exists.
 - Both installers pass a real full-mode install into a temporary home, including a body containing backslashes, and exit non-zero when a managed file is missing.
+- `install.sh` and `install.ps1` produce a byte-identical Claude Code home in both full and support-only mode. They have drifted before — a trailing-newline difference and a case-insensitive manifest sort made each installer rewrite the other's files.
 - `install.sh` passes `bash -n`.
 
 Manual review:
