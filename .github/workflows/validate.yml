@@ -1,0 +1,79 @@
+name: Validate playbook
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install PyYAML
+        run: python -m pip install --quiet pyyaml
+
+      - name: Run playbook validation
+        run: bash scripts/validate.sh
+
+  powershell:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse install.ps1
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $errors = $null
+          [System.Management.Automation.Language.Parser]::ParseFile(
+            (Resolve-Path ./install/install.ps1).Path, [ref]$null, [ref]$errors) | Out-Null
+          if ($errors -and $errors.Count -gt 0) {
+            $errors | ForEach-Object { Write-Host $_ }
+            throw "install.ps1 has $($errors.Count) parse error(s)."
+          }
+          Write-Host "install.ps1 parses cleanly."
+
+      - name: Full install into a temporary home
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $home2 = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+          $env:CLAUDE_CONFIG_DIR = $home2
+          ./install/install.ps1 -Full
+          if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited $LASTEXITCODE" }
+          foreach ($p in @(
+            'CLAUDE.md',
+            'references/model-routing.md',
+            'agents/local-orchestrator.md',
+            'skills/senior-code-review/SKILL.md'
+          )) {
+            $full = Join-Path $home2 $p
+            if (-not (Test-Path -LiteralPath $full)) { throw "missing $full" }
+          }
+          Write-Host "install.ps1 full install succeeded."
+
+      - name: Fail loudly on a missing managed file
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          $clone = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+          New-Item -ItemType Directory -Force -Path $clone | Out-Null
+          foreach ($d in @('agents','references','skills','custom-instructions','install')) {
+            Copy-Item -Recurse -Path $d -Destination (Join-Path $clone $d)
+          }
+          Remove-Item -Recurse -Force (Join-Path $clone 'skills/senior-code-review')
+          $env:CLAUDE_CONFIG_DIR = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+          & (Join-Path $clone 'install/install.ps1') -Full *> $null
+          if ($LASTEXITCODE -eq 0) { throw "install.ps1 exited 0 despite a missing managed file." }
+          Write-Host "install.ps1 correctly exits non-zero."

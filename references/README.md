@@ -1,67 +1,52 @@
 # Global Claude Code Reference Documents
 
-This directory contains global reference documents that the root Claude Code session uses to orchestrate repository work, route bounded subagent execution, review, validate, and coordinate related sessions.
+These are the durable, cross-repository references the root Claude Code session uses to orchestrate work, route subagents, review, validate, and coordinate with other sessions.
 
-These documents are intentionally generic and tool-agnostic unless explicitly Claude-Code-specific. They should not contain repo-specific workflows, sensitive access material, local machine quirks, project names, or one-off incident notes.
+They are deliberately generic. Repository-specific workflows, machine quirks, project names, sensitive access material, and one-off incident notes do not belong here — they belong in a repository's own `CLAUDE.md`, in a skill, or in local notes.
 
-## How to Use These References
+## How to use them
 
-The root session should:
+1. Start with the user's request and the applicable `CLAUDE.md` instructions.
+2. Inspect the current code, tests, configuration, and docs.
+3. Consult only the references that bear on the task, and only the relevant sections.
+4. Treat every reference as supporting context, not automatic truth.
+5. Delegate at least one bounded piece of execution to a subagent for repository work when subagents are available, passing only the context that subagent needs.
+6. Resolve every conflict with primary evidence.
 
-1. Start with the current user request and applicable `CLAUDE.md` instructions.
-2. Inspect current code, tests, configuration, and docs.
-3. Consult only the global reference documents that are relevant.
-4. Treat reference docs as supporting context, not automatic truth.
-5. Route bounded execution to at least one subagent for repository tasks when subagents are available, and pass only relevant context.
-6. Resolve conflicts using primary evidence.
+Primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
 
-Primary evidence includes:
+## The references
 
-- current code
-- tests
-- schemas
-- configuration
-- logs
-- build output
-- typecheck output
-- runtime behavior
-- relevant Claude Code session evidence
-- authoritative external documentation
+| Document | Read it when |
+| --- | --- |
+| `model-routing.md` | You are about to dispatch a subagent and need to choose the model, effort, permission mode, tools, and depth — and understand what actually overrides what. |
+| `subagents.md` | You are deciding whether to delegate, which role fits, and how to write an assignment that comes back usable. |
+| `worktrees.md` | Isolation is being proposed, a task already owns an auxiliary checkout, or a worktree needs integrating, preserving, or removing. |
+| `multi-session-coordination.md` | Other Claude Code sessions, branches, worktrees, or pull requests may be touching the same area. |
+| `reference-doc-routing.md` | You need to decide which documents matter, how much authority each has, and what to pass to a subagent. |
 
-## Available References
+## The templates
 
-- `model-routing.md` — mandatory actual-root-model ceilings, Claude family ranks, explicit per-invocation model routing, definition-level effort, permission, tool, depth, replacement, and acceptance rules for subagents.
-- `subagents.md` — finite-manifest rules for root permits, two delegated generations, bounded execution, handoff verification, and fan-in.
-- `worktrees.md` — root-owned task-local worktree budgeting, Claude Code isolation, integration, cleanup, and preservation rules.
-- `multi-session-coordination.md` — discovery, ownership, sequencing, session naming, conflict detection, and integration guidance for independent Claude Code sessions.
-- `reference-doc-routing.md` — how to choose and classify reference documents.
-- `templates/repository-CLAUDE.md` — starter template for repo-specific `CLAUDE.md` instructions.
-- `templates/architecture.md` — architecture reference template.
-- `templates/testing.md` — testing strategy template.
-- `templates/security.md` — safety and access-control model template.
-- `templates/design-system.md` — design-system and UI convention template.
-- `templates/release.md` — release and deployment template.
-- `templates/api-contracts.md` — API contract template.
-- `templates/data-model.md` — data model and persistence template.
-- `templates/active-work-record.md` — optional repository-local record for active Claude Code session ownership, contracts, upstream work dependencies, blockers, and validation gates.
-- `templates/task-graph.md` — optional instruction-only task graph for complex Claude Code work with real dependencies, declared ownership, permission and tool boundaries, worktree base-state requirements, and verification gates.
-- `templates/worktree-manifest.md` — optional task-local ledger for auxiliary-worktree permits, Claude Code isolation, integration, and final disposition.
+| Template | Purpose |
+| --- | --- |
+| `templates/repository-CLAUDE.md` | Starting point for a repository's own `CLAUDE.md`. |
+| `templates/architecture.md` | Architecture reference. |
+| `templates/testing.md` | Testing strategy. |
+| `templates/security.md` | Safety and access-control model. |
+| `templates/design-system.md` | Design-system and UI conventions. |
+| `templates/release.md` | Release and deployment. |
+| `templates/api-contracts.md` | API contracts. |
+| `templates/data-model.md` | Data model and persistence. |
+| `templates/active-work-record.md` | Optional repository-local record of session ownership, contracts, dependencies, blockers, and validation gates. |
+| `templates/task-graph.md` | Optional instruction-only task graph for complex work with real dependencies. |
+| `templates/worktree-manifest.md` | Optional task-local ledger for auxiliary-worktree permits and dispositions. |
 
-## Placement Rules
+## Where things belong
 
-Use global references under the resolved Claude Code home for durable, cross-repository guidance.
+**Global references** (here, under the Claude Code home) — durable guidance that holds across repositories.
 
-Use repository-level docs for:
+**Repository docs** — architecture, build and test commands, release flow, design rules, framework conventions, domain logic, project-specific subagent roles, active-work records.
 
-- repo architecture
-- repo build/test commands
-- repo release flow
-- repo-specific design rules
-- framework-specific conventions
-- domain-specific business logic
-- project-specific subagent roles
-- project-specific active-work records
+**Skills** — repeatable workflows you want invoked by name.
 
-Use skills for repeatable workflows.
-
-Use `CLAUDE.local.md` or other local notes for machine-specific or shell-specific quirks.
+**`CLAUDE.local.md` or local notes** — machine-specific or shell-specific quirks.

@@ -1,1 +1,11 @@
+# Normalize text files in the repository, and pin line endings where a tool cares.
+* text=auto eol=lf
+
+# Unix shell scripts must stay LF-only, including on Windows checkouts.
 *.sh text eol=lf
+
+# PowerShell is checked out with CRLF, which is what Windows tooling expects.
+*.ps1 text eol=crlf
+
+# Binary assets are never normalized.
+*.png binary

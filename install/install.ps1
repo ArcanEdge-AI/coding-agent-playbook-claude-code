@@ -20,9 +20,17 @@ $ClaudeHome = if ($env:CLAUDE_CONFIG_DIR) { $env:CLAUDE_CONFIG_DIR } else { Join
 $Timestamp = Get-Date -Format "yyyyMMddHHmmss"
 $ManifestPath = Join-Path $ClaudeHome ".coding-agent-playbook-claude-code-managed-files.tsv"
 $LegacyManifestPath = Join-Path $ClaudeHome ".claude-code-agent-playbook-managed-files.tsv"
+$BackupRoot = Join-Path (Join-Path $ClaudeHome ".coding-agent-playbook-backups") $Timestamp
+
+$script:ValidationFailures = 0
 
 function Write-Step($Message) {
   Write-Host $Message
+}
+
+function Write-Failure($Message) {
+  $script:ValidationFailures++
+  Write-Warning $Message
 }
 
 function Invoke-InstallCommand {
@@ -39,13 +47,28 @@ function Get-FileSha256 {
   return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
+# Backups are written under $ClaudeHome\.coding-agent-playbook-backups\<timestamp>\
+# rather than beside the original, so the managed references, agents, and skills
+# trees stay free of stale `*.bak.<timestamp>` files after every update.
 function Backup-File {
   param([string]$Path)
-  if (Test-Path -LiteralPath $Path -PathType Leaf) {
-    $Backup = "$Path.bak.$Timestamp"
-    Write-Step "Backing up $Path -> $Backup"
-    Invoke-InstallCommand { Copy-Item -LiteralPath $Path -Destination $Backup -Force } "Copy-Item '$Path' '$Backup'"
+  if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+    return
   }
+
+  $FullPath = [System.IO.Path]::GetFullPath($Path)
+  $HomeFull = [System.IO.Path]::GetFullPath($ClaudeHome).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+  if ($FullPath.StartsWith($HomeFull, [System.StringComparison]::OrdinalIgnoreCase)) {
+    $Relative = $FullPath.Substring($HomeFull.Length)
+  } else {
+    $Relative = Split-Path -Leaf $FullPath
+  }
+
+  $Backup = Join-Path $BackupRoot $Relative
+  $BackupParent = Split-Path -Parent $Backup
+  Write-Step "Backing up $Path -> $Backup"
+  Invoke-InstallCommand { New-Item -ItemType Directory -Force -Path $BackupParent | Out-Null } "New-Item -ItemType Directory -Force '$BackupParent'"
+  Invoke-InstallCommand { Copy-Item -LiteralPath $Path -Destination $Backup -Force } "Copy-Item '$Path' '$Backup'"
 }
 
 function Copy-PlaybookFile {
@@ -325,6 +348,7 @@ function AddOrReplace-PlaybookSection {
       }
       $Section = "$StartMarker$Newline# $Title$Newline$Newline$NormalizedBody$Newline$EndMarker"
       $Updated = $Existing.Substring(0, $ActiveStartIndex) + $Section + $Existing.Substring($ActiveEndIndex + $ActiveEndMarker.Length)
+      if (-not $Updated.EndsWith($Newline)) { $Updated += $Newline }
       if ($Updated -eq $Existing) {
         Write-Step "Unchanged $Target"
         return
@@ -343,7 +367,7 @@ function AddOrReplace-PlaybookSection {
   if ($Newline -eq "`r`n") {
     $NormalizedBody = $NormalizedBody -replace "`n", "`r`n"
   }
-  $Section = "$StartMarker$Newline# $Title$Newline$Newline$NormalizedBody$Newline$EndMarker"
+  $Section = "$StartMarker$Newline# $Title$Newline$Newline$NormalizedBody$Newline$EndMarker$Newline"
   Invoke-InstallCommand { New-Item -ItemType Directory -Force -Path $Parent | Out-Null } "New-Item -ItemType Directory -Force '$Parent'"
   Backup-File $Target
 
@@ -394,13 +418,13 @@ The primary global coding-agent behavior may already be configured in this CLAUD
 
 Supporting global reference documents live under the Claude Code home references directory:
 
-- `references/README.md` — map of available global reference docs
-- `references/model-routing.md` — mandatory Claude model, effort, permission, tool, depth, escalation, and acceptance rules
-- `references/subagents.md` — Claude Code subagent delegation rules, assignment template, and acceptance checklist
-- `references/worktrees.md` — root-owned task-local worktree budgeting, Claude Code isolation, integration, cleanup, and preservation rules
-- `references/multi-session-coordination.md` — Claude Code session discovery, naming, ownership, sequencing, conflict detection, and integration guidance
-- `references/reference-doc-routing.md` — how to decide which docs to consult and how to treat them
-- `references/templates/` — templates for repository-level CLAUDE.md, architecture, testing, access control, design system, release, API, data model, active work, task graphs, and worktree manifests
+- `references/README.md` — map of the available global reference docs
+- `references/model-routing.md` — how Claude Code resolves a subagent's model, what overrides what, effort semantics, permission modes, tool boundaries, and nesting depth
+- `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
+- `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
+- `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
+- `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
+- `references/templates/` — templates for repository CLAUDE.md, architecture, testing, access control, design system, release, API contracts, data model, active work, task graphs, and worktree manifests
 
 Reusable Claude Code skills live under the Claude Code home skills directory:
 
@@ -420,17 +444,19 @@ Custom Claude Code subagents live under the Claude Code home agents directory:
 - `agents/test-triager.md`
 - `agents/isolated-worker.md`
 
-Reference documents are supporting context, not automatic truth. For repository tasks when subagents are available, the root Claude Code session delegates actual execution to at least one bounded subagent and remains accountable for root orchestration, integration, validation, acceptance, and the final response. Direct root execution is limited to unavailable subagents, an explicit user prohibition, or a specific authority-bound action; record the exact exception.
+Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
 
-The root owns a finite manifest, total subagent budget, and child-specific permits. The actual user-selected main-session model is the root ceiling: Opus rank 3, Sonnet rank 2, Haiku rank 1. Every managed route is explicit and root-permitted, and every `Agent` invocation passes a model with child rank at or below parent rank; automatic or omitted-model routes are rejected. Bundled definitions fail closed at Haiku, and their fixed effort must fit the parent ceiling. Equal-tier routing is valid and depth does not force a drop. Descendants cannot request upgrades. Only the root may route a new depth-1 replacement within the actual root ceiling, even when stronger than the failed child. Unknown, unavailable, or substituted models are not accepted silently.
+Pass an explicit `model` on every `Agent` dispatch; never leave it to default. Keep each child at or below the main session's tier (`opus` > `sonnet` > `haiku`) and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating does not require stepping down. Bundled definitions pin `model: haiku` so an omitted-model dispatch fails closed. Note that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`, and organization allowlists can substitute; verify rather than assume when attribution matters. `effort` comes from the agent definition and overrides session effort — it is a property of the role, not a ceiling inherited from the caller.
 
-Depth 1 contains named direct workers or `local-orchestrator`. A permitted local orchestrator may use only root-permitted depth-2 leaves, and only after nesting support and an active `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` setting are verified. Depth-2 leaves omit `Agent` and cannot spawn; depth 3 is prohibited. Every child stays at or below its parent in model, effort, permission mode, tools, scope, workspace, and authority. If either gate is unavailable, depth 1 executes directly without `Agent`; the setting is not changed without authorization.
+Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in model, permissions, tools, scope, workspace, and authority.
 
-The auxiliary-worktree budget starts at zero and is separate from the subagent budget. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. Before the final response, the root removes each task-created auxiliary under verified gates or preserves it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation. The active host-managed worktree remains under the host lifecycle.
+Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
 
-The root Claude Code session must verify implementation-relevant claims against primary evidence such as current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
+The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
 
-When delegating to subagents or coordinating independent Claude Code sessions, pass only relevant reference document names, paths, or sections. Do not dump large documents or full session transcripts into prompts unless necessary.
+Verify implementation-relevant claims against primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
+
+When delegating to subagents or coordinating independent sessions, pass only the relevant document names, paths, or sections. Do not dump large documents or full session transcripts into prompts.
 
 The root session remains accountable for the final plan, final diff, validation, and final response.
 '@
@@ -475,7 +501,7 @@ foreach ($Path in $CheckPaths) {
   if ($DryRun -or (Test-Path -LiteralPath $Path)) {
     Write-Step "OK: $Path"
   } else {
-    Write-Warning "Missing: $Path"
+    Write-Failure "Missing: $Path"
   }
 }
 
@@ -484,9 +510,12 @@ Get-ChildItem -LiteralPath (Join-Path $ClaudeHome "skills") -Filter SKILL.md -Re
   if ($Text -match "(?m)^name:" -and $Text -match "(?m)^description:") {
     Write-Step "OK frontmatter: $($_.FullName)"
   } else {
-    Write-Warning "Check frontmatter: $($_.FullName)"
+    Write-Failure "Check frontmatter: $($_.FullName)"
   }
 }
+
+# Roles that must stay read-only: plan permission mode, and no Edit or Write.
+$ReadOnlyAgents = @("read-only-explorer", "docs-researcher", "senior-reviewer")
 
 $ExpectedAgentNames = @(
   "local-orchestrator",
@@ -499,7 +528,7 @@ $ExpectedAgentNames = @(
 
 foreach ($AgentName in $ExpectedAgentNames) {
   $AgentPath = Join-Path $ClaudeHome "agents\$AgentName.md"
-  if ($DryRun -or -not (Test-Path -LiteralPath $AgentPath -PathType Leaf)) {
+  if (-not (Test-Path -LiteralPath $AgentPath -PathType Leaf)) {
     continue
   }
 
@@ -512,14 +541,14 @@ foreach ($AgentName in $ExpectedAgentNames) {
       $Text -match "(?m)^tools:") {
     Write-Step "OK Claude Code frontmatter: $AgentPath"
   } else {
-    Write-Warning "Check Claude Code frontmatter: $AgentPath"
+    Write-Failure "Check Claude Code frontmatter: $AgentPath"
   }
 
   if ($Text -match "(?m)^name:\s*$([regex]::Escape($AgentName))\s*$" -and
       $Text -match "(?m)^model:\s*haiku\s*$") {
     Write-Step "OK Claude Code agent name and model: $AgentPath"
   } else {
-    Write-Warning "Check Claude Code agent name or fail-closed Haiku model: $AgentPath"
+    Write-Failure "Check Claude Code agent name or fail-closed Haiku model: $AgentPath"
   }
 
   $ToolsMatch = [regex]::Match($Text, "(?m)^tools:\s*(.+)$")
@@ -528,15 +557,42 @@ foreach ($AgentName in $ExpectedAgentNames) {
     if ($HasAgentTool) {
       Write-Step "OK depth-1 Agent tool: $AgentPath"
     } else {
-      Write-Warning "local-orchestrator.md must list Agent: $AgentPath"
+      Write-Failure "local-orchestrator.md must list Agent: $AgentPath"
     }
   } elseif ($HasAgentTool) {
-    Write-Warning "Execution worker or leaf must not list Agent: $AgentPath"
+    Write-Failure "Execution worker or leaf must not list Agent: $AgentPath"
+  }
+
+  if ($ReadOnlyAgents -contains $AgentName) {
+    if ($Text -match "(?m)^permissionMode:\s*plan\s*$") {
+      Write-Step "OK read-only permission mode: $AgentPath"
+    } else {
+      Write-Failure "Read-only role must use permissionMode: plan: $AgentPath"
+    }
+
+    if ($ToolsMatch.Success -and ($ToolsMatch.Groups[1].Value -match "(?:^|,\s*)(Edit|Write)(?:\s*,|\s*$)")) {
+      Write-Failure "Read-only role must not list Edit or Write: $AgentPath"
+    } else {
+      Write-Step "OK read-only tool boundary: $AgentPath"
+    }
+  } elseif ($Text -match "(?m)^permissionMode:\s*(acceptEdits|auto|dontAsk|bypassPermissions)\s*$") {
+    Write-Failure "Write-capable role must use permissionMode: default unless a maintainer approved otherwise: $AgentPath"
   }
 
   if ($Text -match "(?m)^isolation:\s*worktree\s*$") {
-    Write-Warning "Bundled agents must not enable worktree isolation globally: $AgentPath"
+    Write-Failure "Bundled agents must not enable worktree isolation globally: $AgentPath"
   }
+}
+
+Write-Step ""
+if (Test-Path -LiteralPath $BackupRoot -PathType Container) {
+  Write-Step "Backups for this run: $BackupRoot"
+}
+
+if ($script:ValidationFailures -gt 0) {
+  Write-Step ""
+  Write-Warning "Install finished with $($script:ValidationFailures) validation failure(s). Review the messages above."
+  exit 1
 }
 
 Write-Step ""

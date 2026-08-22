@@ -16,14 +16,14 @@ Describe:
 
 Document the normal commands for:
 
-- install/setup
+- install and setup
 - targeted tests
 - full tests
 - typecheck
 - lint
 - format
 - build
-- local run/smoke test
+- local run and smoke test
 
 ## Architecture Rules
 

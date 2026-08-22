@@ -1,53 +1,86 @@
 # Repository Coding Agent Instructions
 
-This repository is a public playbook for Claude Code global instructions, reference documents, skills, and custom subagent definitions.
+This repository is a public playbook of Claude Code global instructions, reference documents, skills, and custom subagent definitions. It is almost entirely Markdown, plus two installers and a small amount of YAML frontmatter.
 
-Repository-specific guidance overrides the global instructions where it is more specific.
+Repository-specific guidance here overrides the global instructions where it is more specific.
 
-## Repository Goals
+## What This Repository Is For
 
-- Keep the playbook useful for many teams and codebases.
+- Keep the playbook useful across many teams and codebases.
 - Keep global guidance tool-agnostic and durable.
-- Keep repository-specific, machine-specific, and workflow-specific details out of global instructions.
-- Prefer concise, practical guidance over long theory.
-- Make the root Claude Code session accountable for root-task framing, finite delegation, coordination, integration, validation, and final reporting.
-- Keep the Claude Code subagent model aligned around `local-orchestrator`, `read-only-explorer`, `senior-reviewer`, `docs-researcher`, `test-triager`, and `isolated-worker`.
-- Keep every custom subagent pinned to a fail-closed Haiku default, fixed definition-level effort, permission mode, and tool boundary; require explicit root-permitted calls that pass the task-approved model, and reject automatic or omitted-model routes.
-- Treat the actual user-selected main-session model as the root ceiling. Use Opus rank 3, Sonnet rank 2, and Haiku rank 1; require `child rank <= parent rank`, allow equal-tier routes, and never assume Opus.
-- Keep nested delegation bounded to depth 2 below the root: only `local-orchestrator` may receive `Agent`, execution leaves must not receive it, and nested execution requires verified client support plus an active `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` setting in an authorized scope.
-- Keep shared execution as the default. Do not add `isolation: worktree` to bundled agent definitions; worktree isolation requires a task-local root permit and verified base state.
+- Keep repository-specific, machine-specific, and workflow-specific detail out of global instructions.
+- Prefer concise, practical guidance over theory — but do not sacrifice necessary detail for brevity. These files are read by agents that need the specifics.
+- Keep the root session accountable for framing, delegation, coordination, integration, validation, and the final report.
+- Keep the subagent lineup at `local-orchestrator`, `read-only-explorer`, `senior-reviewer`, `docs-researcher`, `test-triager`, and `isolated-worker`.
+
+## Facts About Claude Code That This Playbook Depends On
+
+These are load-bearing. If you change guidance that touches them, verify against the current Claude Code documentation first — an earlier version of this playbook had the nesting rule backwards, and it propagated to eleven files.
+
+- **Subagent frontmatter** supports `name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `effort`, `isolation`, and others. All of the fields used here are documented.
+- **Model precedence**: `CLAUDE_CODE_SUBAGENT_MODEL` > per-invocation `model` > frontmatter `model` > `inherit`. The environment variable outranks the call, so an explicit model is a strong default and not a guarantee.
+- **Nesting is enabled by default**, up to three layers below the main conversation. `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` **tightens** that to two; `1` turns nesting off. It is not a switch that enables nesting, and it must never be documented as a precondition for delegation.
+- **What actually prevents a spawn** is omitting `Agent` from `tools` and listing it in `disallowedTools`. Prompt text does not.
+- **`effort` overrides the session effort level.** It is a property of the role, not a ceiling inherited from the caller. Do not reintroduce a rule that a child's effort must be at or below the caller's session effort — it makes the `high`-effort roles unreachable from ordinary sessions.
+- **Plan mode gates shell commands.** Commands outside the built-in read-only set are classifier-reviewed or prompt for approval, so a `plan`-mode subagent cannot reliably run tests, linters, type checkers, or builds. Suite execution belongs to `test-triager` (`default` mode), not `senior-reviewer` (`plan` mode).
+- **`isolation: worktree` branches from the repository default branch**, not the parent session's `HEAD`, unless `worktree.baseRef` is `"head"`. This is why isolation is root-authorized with the base ref recorded.
+- **Agent teams** can turn a named subagent spawn into a teammate that runs in the main session's working directory; frontmatter `isolation` does not prevent it.
+- **Background subagents** keep only a subset of built-in tools, so one definition can resolve to different tools in the foreground and the background.
 
 ## Content Rules
 
-- Do not include sensitive access material, private local paths, internal-only URLs, full session transcripts, or long incident logs.
-- Do not hardcode project names, organization-specific workflows, or local machine quirks in global guidance.
-- Do not add instructions tied to a specific issue tracker, review tool, package manager, shell, or hosting provider unless the file is explicitly an example or template.
-- Use Claude Code terminology, paths, commands, YAML agent schemas, model aliases, effort fields, permission modes, tool names, and session concepts in Claude-specific files.
-- Do not copy configuration paths, file names, agent formats, model identifiers, or command vocabulary from another coding-agent environment into this repository.
-- Prefer terms like "safety", "access control", and "sensitive access material" when public documentation does not need product-specific terminology.
+- No sensitive access material, private local paths, internal-only URLs, session transcripts, or long incident logs.
+- No hardcoded project names, organization workflows, or local machine quirks in global guidance.
+- No instructions tied to a specific issue tracker, review tool, package manager, shell, or hosting provider unless the file is explicitly an example or template.
+- Use Claude Code terminology in Claude-specific files: `CLAUDE.md`, the resolved Claude Code home, Markdown agent definitions with YAML frontmatter, model aliases, effort levels, permission modes, real tool names, and real session commands.
+- Never copy configuration paths, file names, agent formats, model identifiers, or command vocabulary from another coding-agent environment into this repository.
+- Prefer "safety", "access control", and "sensitive access material" over product-specific security terminology.
 - Keep templates reusable and clearly marked as templates.
-- Keep generic behavioral policy aligned with the companion Codex playbook. When a difference is intentional, document the concrete harness capability that requires it instead of preserving unexplained drift.
+- Keep generic behavioral policy aligned with the companion Codex playbook. Where a difference is intentional, name the concrete Claude Code capability that requires it rather than leaving unexplained drift.
+
+## Writing Style for Agent-Facing Files
+
+The `agents/`, `references/`, `skills/`, and `custom-instructions/` files are read by models, and how they are written changes how well they are followed.
+
+- **Put a rule where its actor can act on it.** Routing rules belong in the caller's documentation, not duplicated into every leaf agent's system prompt — a leaf cannot choose its own model.
+- **Lead with the decision**, then the rule, then the exception.
+- **Prefer concrete examples over abstract constraint lists.** One worked assignment teaches more than twenty required fields.
+- **Explain the mechanism when it changes behavior.** "Plan mode cannot run your test suite" is followed; "respect permission boundaries" is not.
+- **Use tables for lookups and numbered steps for procedures.**
+- **State positive defaults**, then a bounded list of what not to do.
+- **Avoid invented vocabulary.** Say what Claude Code says: subagent, `Agent` tool, `subagent_type`, `model`, `effort`, `permissionMode`, `tools`, `disallowedTools`, nesting depth, plan mode.
+- **Do not compress away necessary detail.** These files are reference material; length is fine when every paragraph earns its place.
 
 ## Validation
 
-This repo is mostly Markdown, with a small set of YAML frontmatter blocks in skill and agent definitions. Before finalizing meaningful changes:
+Run the full check suite locally before finalizing meaningful changes:
 
-- Review Markdown headings and fenced code blocks for correctness.
-- Confirm each `SKILL.md` has YAML frontmatter with `name` and `description`.
-- Confirm each `agents/*.md` file has YAML frontmatter with `name`, `description`, `model`, `effort`, `permissionMode`, and `tools`; every managed model defaults to Haiku and every description rejects automatic selection.
-- Confirm read-only roles use `permissionMode: plan` and do not list `Edit` or `Write` in their `tools` frontmatter.
-- Confirm write-capable bundled roles use `permissionMode: default` unless a different mode has explicit maintainer approval.
-- Confirm only `agents/local-orchestrator.md` lists `Agent`; direct workers and depth-2 leaves must omit it.
-- Confirm no bundled agent definition sets `isolation: worktree` globally.
-- Confirm every agent definition requires an explicit invocation model, rejects unresolved substitutions, and includes clear stop conditions without descendant upgrade requests.
-- Confirm the docs cover Opus, Sonnet, and Haiku roots; equal-tier children; no forced tier drop; root-only stronger replacements within the actual root ceiling; and unknown or unavailable model handling.
-- Confirm links and paths in `README.md` match the repository tree.
-- Confirm install docs and scripts reference the current Claude Code subagent files.
-- Confirm PowerShell and Bash installers default normal installs and updates to full mode, create a marked global section on first install, maintain the managed-file manifest, retire only unchanged formerly managed files, and preserve customized or unrelated files.
-- Confirm installer validation lists include `references/worktrees.md`, `references/templates/worktree-manifest.md`, `skills/worktree-lifecycle/SKILL.md`, and `agents/local-orchestrator.md`.
-- Confirm new Claude-specific guidance uses `CLAUDE.md`, the resolved Claude Code home, Markdown subagent definitions, Claude model aliases, effort levels, permission modes, Claude tool names, and Claude session commands where applicable.
-- Compare generic policy changes with the companion Codex playbook and either align them or record the concrete harness-specific reason for divergence.
-- Search the final diff for paths, schemas, model names, and commands that belong to another coding-agent environment; remove any accidental contamination before merging.
+```bash
+bash scripts/validate.sh
+```
+
+CI runs exactly this script (`.github/workflows/validate.yml`), plus a PowerShell job that parses `install.ps1` and exercises it end to end — the Linux runners used for development have no `pwsh`, so that job is the only place `install.ps1` is actually executed.
+
+Automated checks (CI enforces all of these):
+
+- Every `SKILL.md` has YAML frontmatter with `name` and `description`.
+- Every `agents/*.md` has `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`, and every `model` is `haiku`.
+- `read-only-explorer`, `docs-researcher`, and `senior-reviewer` use `permissionMode: plan` and list neither `Edit` nor `Write`.
+- `test-triager`, `isolated-worker`, and `local-orchestrator` use `permissionMode: default`.
+- Only `agents/local-orchestrator.md` lists `Agent` in `tools`; the other five list `Agent` in `disallowedTools`.
+- No bundled agent sets `isolation: worktree`.
+- Fenced code blocks are balanced, and every repository path referenced in Markdown exists.
+- Both installers pass a real full-mode install into a temporary home, including a body containing backslashes, and exit non-zero when a managed file is missing.
+- `install.sh` passes `bash -n`.
+
+Manual review:
+
+- Guidance touching any item in **Facts About Claude Code** matches current documentation.
+- `README.md`'s repository-structure block matches the actual tree.
+- Install docs and scripts reference the current file set.
+- Installers default to full mode, maintain the managed-file manifest, retire only unchanged formerly managed files, write backups outside the managed trees, and preserve customized or unrelated files.
+- Generic policy changes were compared with the companion Codex playbook.
+- The final diff contains no paths, schemas, model names, or commands belonging to another coding-agent environment.
 
 ## License
 

@@ -1,94 +1,75 @@
 # Reference Document Routing
 
-Reference documents help the root session and subagents find relevant context without bloating every prompt.
+Reference documents are useful exactly when they are routed. Dumped wholesale into a prompt they are noise; ignored entirely they let you rebuild something the project already decided.
 
-Reference documents are supporting context, not automatic truth.
+The rule that governs all of this:
 
-## When to Consult Reference Docs
+> **A reference document describes what someone intended. The code describes what is true. When they disagree, the code wins and the disagreement is worth reporting.**
 
-Consult reference docs when a task touches:
+## When to reach for one
 
-- architecture
-- domain rules
-- API contracts
-- data models
-- schemas or migrations
-- testing strategy
-- design-system conventions
-- safety requirements
-- release or deployment expectations
-- worktree ownership, isolation, integration, or cleanup
-- known pitfalls
-- recurring mistakes
-- subagent role definitions or review checklists
+Consult reference docs when the task touches architecture, domain rules, API contracts, data models, schemas or migrations, testing strategy, design-system conventions, safety and access-control requirements, release or deployment expectations, worktree ownership and lifecycle, known pitfalls, recurring mistakes, or subagent role definitions and review checklists.
 
-## Authority Levels
+Skip them when the answer is directly readable from the code and reading the doc would only add a second, possibly stale, account of it.
 
-Classify documents before relying on them.
+## Classify before you rely
+
+Every document gets one of three labels, and the label changes how much weight it carries.
 
 ### Authoritative
 
-A document is authoritative when repository or user instructions explicitly say it is the source of truth.
+Repository or user instructions explicitly make it the source of truth. Follow it, and raise a conflict rather than quietly deviating.
 
-Examples:
-
-- current API contract
-- current schema migration rules
-- current design-system rules
-- current access-control model
-- current release checklist
+Typically: the current API contract, schema migration rules, design-system rules, access-control model, release checklist.
 
 ### Advisory
 
-A document is advisory when it gives guidance but current code, tests, or user instructions may override it.
+Useful guidance that current code, tests, or user instructions can override.
 
-Examples:
-
-- architecture overview
-- style guidance
-- testing recommendations
-- implementation notes
+Typically: architecture overviews, style guidance, testing recommendations, implementation notes.
 
 ### Historical
 
-A document is historical when it may describe past decisions or deprecated behavior.
+It may describe past decisions or behavior that no longer exists.
 
-Examples:
+Typically: incident notes, old migration plans, archived design proposals, superseded implementation docs.
 
-- incident notes
-- old migration plans
-- archived design proposals
-- superseded implementation docs
+Never rely on a historical document for current implementation without verifying it first. The most expensive version of this mistake is implementing against an architecture document that describes the system as it was two refactors ago — everything reads coherently and none of it matches the code.
 
-Do not silently rely on historical docs for current implementation.
+Signals that a document has drifted: it references files, symbols, or endpoints that no longer exist; its examples use an API shape the code no longer has; it predates a migration you can see in the history; it contradicts the tests.
 
-## Conflict Resolution
+## Read narrowly
 
-If a reference document conflicts with current code, tests, configuration, runtime behavior, or repository instructions:
+Find the sections that bear on the task and read those. A large document read end to end costs context that the actual code needed.
 
-1. Report the conflict.
-2. Prefer primary evidence for implementation decisions.
-3. Update or flag stale docs when appropriate.
-4. Do not choose silently.
+`Grep` the document for the symbol, endpoint, table, or concept you care about, then read around the hits. Read the whole document only when the task is genuinely about the whole subject.
 
-Primary evidence includes:
+## When a document and the code disagree
 
-- current code
-- tests
-- schemas
-- configuration
-- logs
-- build output
-- typecheck output
-- runtime behavior
-- authoritative external documentation
+1. **Say so.** Do not silently pick one.
+2. **Prefer primary evidence** for the implementation decision.
+3. **Work out which is wrong.** Sometimes the code is a bug and the doc is right; sometimes the doc is stale; sometimes the code is deliberately working around something the doc does not mention. These lead to different actions.
+4. **Flag or update the stale document** where that is in scope.
 
-## Passing Docs to Subagents
+Primary evidence is: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, and authoritative external documentation.
 
-When delegating:
+## Passing documents to subagents
 
-- include only relevant document names, paths, or sections
-- tell the subagent whether each document is authoritative, advisory, or historical
-- require implementation-relevant claims to be checked against current code when implementation decisions depend on the document
-- avoid dumping entire documents into prompts unless necessary
-- ask for evidence, not vibes
+A subagent starts with a fresh context. It sees only what you send.
+
+Send **the path and the relevant section**, not the document:
+
+```text
+Reference documents:
+- docs/api-contracts.md, "Checkout" section — authoritative. Follow the request
+  and response shapes exactly.
+- docs/architecture.md, "Payments" section — advisory, and last updated before
+  the Stripe migration. Verify anything you take from it against current code.
+
+Verify implementation-relevant claims against the current code before relying
+on them. Do not summarize unrelated sections.
+```
+
+Always tell the subagent which label applies. A subagent given an unlabeled document treats it as truth, and you will get back work built on a stale premise with a confident summary attached.
+
+Ask for evidence, not agreement: the subagent should come back with the paths and symbols it checked, not with a restatement of the document you sent it.

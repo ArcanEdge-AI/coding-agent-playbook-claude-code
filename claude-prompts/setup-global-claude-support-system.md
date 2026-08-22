@@ -1,66 +1,56 @@
 # Prompt: Set Up Global Claude Code Support System
 
-> This is an explicit support-only setup prompt, not a normal installer or updater. For every normal install or update, follow `INSTALL.md` in full mode. Do not select this prompt merely because existing playbook files are present.
+> This is the explicit **support-only** setup prompt, not an installer or updater. For a normal install or update, follow `INSTALL.md` in full mode. Do not choose this prompt merely because playbook files already exist.
 
-Paste this prompt into Claude Code after you have already added the global coding-agent instructions from `custom-instructions/global-coding-agent-instructions.md` to your global `CLAUDE.md`.
+Paste this into Claude Code **after** you have already added the global instructions from `custom-instructions/global-coding-agent-instructions.md` to your global `CLAUDE.md`.
 
-```markdown
+````markdown
 You are configuring my global Claude Code support system.
 
 Important context:
-I have already added my full global coding-agent instructions to my global CLAUDE.md, the user-level memory file Claude Code loads into every session. Treat that as true even if you cannot inspect it directly in this conversation.
-Do not duplicate those full instructions elsewhere.
-This explicit statement is the authorization for support-only behavior. Without it, stop using this prompt and follow `INSTALL.md` in full mode.
+I have already added my full global coding-agent instructions to my global CLAUDE.md, the user-level memory file Claude Code loads into every session. Treat that as true even if you cannot inspect it here. Do not duplicate those instructions anywhere.
 
-Your job is to create the supporting global system only:
+This statement is the authorization for support-only behavior. Without it, stop using this prompt and follow `INSTALL.md` in full mode.
+
+Your job is to create the supporting system only:
 
 - global reference documents
-- Claude model, effort, and permission routing docs
-- reference document routing docs
-- subagent delegation docs
-- multi-session coordination docs
+- subagent routing documentation
+- reference-document routing documentation
+- subagent delegation documentation
+- multi-session coordination documentation
 - reusable skills
 - global custom Claude Code subagent definitions
-- a small pointer section in the global CLAUDE.md only if helpful and not already present
+- a small pointer section in the global CLAUDE.md, only if useful and not already present
 
-Do not modify any repository files. Work only in user-level/global Claude Code configuration locations.
+Do not modify any repository files. Work only in user-level Claude Code configuration locations.
 
 ## Path Resolution
 
-Resolve paths like this:
+- `CLAUDE_HOME`: use `CLAUDE_CONFIG_DIR` if set; otherwise the Claude Code home, normally `~/.claude`.
+- `GLOBAL_CLAUDE_MD`: `$CLAUDE_HOME/CLAUDE.md`
+- `GLOBAL_REFERENCES_HOME`: `$CLAUDE_HOME/references`
+- `GLOBAL_SKILLS_HOME`: `$CLAUDE_HOME/skills`
+- `GLOBAL_AGENTS_HOME`: `$CLAUDE_HOME/agents`
 
-- `CLAUDE_HOME`: use the `CLAUDE_CONFIG_DIR` environment variable if set; otherwise use the user's Claude Code home directory, normally `~/.claude`.
-- `GLOBAL_CLAUDE_MD`: `$CLAUDE_HOME/CLAUDE.md`.
-- `GLOBAL_REFERENCES_HOME`: `$CLAUDE_HOME/references`.
-- `GLOBAL_SKILLS_HOME`: `$CLAUDE_HOME/skills`.
-- `GLOBAL_AGENTS_HOME`: `$CLAUDE_HOME/agents`.
+On Windows, resolve the equivalent user-home paths rather than hardcoding Unix paths. Never hardcode machine-specific usernames or absolute paths.
 
-If the platform is Windows, resolve equivalent user-home paths safely instead of hardcoding Unix-only paths.
-
-Do not hardcode machine-specific usernames or absolute paths.
-
-## Preflight Requirements
+## Preflight
 
 Before writing anything:
 
 1. Print the resolved paths.
-2. Inspect whether these exist:
-   - `$GLOBAL_CLAUDE_MD`
-   - `$GLOBAL_REFERENCES_HOME`
-   - `$GLOBAL_SKILLS_HOME`
-   - `$GLOBAL_AGENTS_HOME`
+2. Check whether `$GLOBAL_CLAUDE_MD`, `$GLOBAL_REFERENCES_HOME`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME` exist.
 3. Do not delete existing content.
-4. Do not overwrite existing content without a timestamped backup.
-5. If a file already exists, prefer a careful merge/update over replacement.
-6. If replacement is necessary, create a timestamped backup next to the file.
+4. Do not overwrite anything without a timestamped backup.
+5. Prefer a careful update over a replacement when a file already exists.
+6. Write backups under `$CLAUDE_HOME/.coding-agent-playbook-backups/<timestamp>/`, mirroring the relative path — not beside the original, which would leave stray files inside directories Claude Code scans.
 7. Do not store sensitive access material, private local paths, full session transcripts, or long incident logs.
-8. Keep everything tool-agnostic where it is not explicitly Claude-Code-specific.
-9. Use only Claude Code file names, configuration paths, subagent schemas, model aliases, effort fields, permission modes, tool names, and session commands.
+8. Keep everything tool-agnostic except where it is explicitly Claude Code specific.
+9. Use only Claude Code file names, configuration paths, subagent frontmatter fields, model aliases, effort levels, permission modes, tool names, and session commands.
 10. Do not ask me questions unless you are blocked. Make reasonable assumptions and report them.
 
-## Desired Global Structure
-
-Create or update this structure:
+## Desired Structure
 
 ```text
 $CLAUDE_HOME/
@@ -85,18 +75,12 @@ $CLAUDE_HOME/
       task-graph.md
       worktree-manifest.md
   skills/
-    task-graph-orchestration/
-      SKILL.md
-    subagent-orchestration/
-      SKILL.md
-    worktree-lifecycle/
-      SKILL.md
-    multi-session-coordination/
-      SKILL.md
-    reference-doc-routing/
-      SKILL.md
-    senior-code-review/
-      SKILL.md
+    task-graph-orchestration/SKILL.md
+    subagent-orchestration/SKILL.md
+    worktree-lifecycle/SKILL.md
+    multi-session-coordination/SKILL.md
+    reference-doc-routing/SKILL.md
+    senior-code-review/SKILL.md
   agents/
     local-orchestrator.md
     read-only-explorer.md
@@ -106,50 +90,51 @@ $CLAUDE_HOME/
     isolated-worker.md
 ```
 
-Each agent file under `$GLOBAL_AGENTS_HOME` must have YAML frontmatter with `name`, `description`, `model`, `effort`, `permissionMode`, and `tools`, followed by the system-prompt body.
+## Agent Definitions
 
-Use these Claude Code frontmatter defaults. Every model defaults to Haiku so omitted or automatic model routing fails closed; the normal explicit model is listed separately:
+Each file under `$GLOBAL_AGENTS_HOME` needs YAML frontmatter with `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`, followed by the system-prompt body.
 
-- `local-orchestrator`: Haiku default, Sonnet normal explicit model, high effort, default permission mode; Agent, Read, Grep, Glob, Bash, Edit, Write, WebFetch, WebSearch
-- `read-only-explorer`: Haiku default and normal explicit model, low effort, plan permission mode; Read, Grep, Glob
-- `docs-researcher`: Haiku default and normal explicit model, low effort, plan permission mode; Read, Grep, Glob, WebFetch, WebSearch
-- `test-triager`: Haiku default, Sonnet normal explicit model, medium effort, default permission mode; Read, Grep, Glob, Bash, Edit
-- `isolated-worker`: Haiku default, Sonnet normal explicit model, medium effort, default permission mode; Read, Grep, Glob, Edit, Write, Bash
-- `senior-reviewer`: Haiku default, Sonnet normal explicit model, high effort, plan permission mode; Read, Grep, Glob, Bash
+| Agent | model | effort | permissionMode | tools | disallowedTools |
+| --- | --- | --- | --- | --- | --- |
+| `local-orchestrator` | `haiku` | `high` | `default` | Agent, Read, Grep, Glob, Bash, Edit, Write, WebFetch, WebSearch | EnterWorktree, ExitWorktree |
+| `read-only-explorer` | `haiku` | `low` | `plan` | Read, Grep, Glob | Agent |
+| `docs-researcher` | `haiku` | `low` | `plan` | Read, Grep, Glob, WebFetch, WebSearch | Agent |
+| `test-triager` | `haiku` | `medium` | `default` | Read, Grep, Glob, Bash, Edit | Agent |
+| `isolated-worker` | `haiku` | `medium` | `default` | Read, Grep, Glob, Edit, Write, Bash | Agent |
+| `senior-reviewer` | `haiku` | `high` | `plan` | Read, Grep, Glob, Bash | Agent |
 
-Keep exactly one definition for each role. Claude Code supports a per-invocation `model` override, so do not create model-specific copies of the agent files. At execution time, record the actual model selected for the main session and treat it as the root ceiling. Use Opus rank 3, Sonnet rank 2, and Haiku rank 1; require `child rank <= parent rank`, allow equal-tier routes, and never assume Opus. Use only explicit root-permitted routes and pass the permitted model on every `Agent` invocation; reject automatic or omitted-model routes. Effort is fixed in the role definition and must fit the recorded parent ceiling; do not invent a per-invocation effort parameter.
+Every `model` is `haiku` so that a dispatch which omits the model fails closed — cheap and weak — rather than silently running on the main session's model. The caller passes the model it actually wants on each `Agent` call; Sonnet is the normal explicit route for `local-orchestrator`, `senior-reviewer`, `test-triager`, and `isolated-worker`.
 
-With an Opus root, normally use Sonnet for substantial delegated work and Haiku for cheap, objective work; record the exceptional reason and verification plan for an Opus child. A Sonnet root may use Sonnet or Haiku. A Haiku root may use Haiku only. Descendants stop and report insufficiency without requesting an upgrade. Only the root may issue a new depth-1 replacement permit, and that replacement may be stronger than the failed child only while remaining within the actual root ceiling. Do not accept unknown, unavailable, or substituted models silently.
+Keep exactly one definition per role. Claude Code supports a per-invocation `model`, so do not create model-specific copies.
 
-Set `tools` to the minimum set the role needs. Only `local-orchestrator` includes `Agent`; direct workers and depth-2 leaves omit it. The local orchestrator's broad list is its inherited child ceiling, not permission for unassigned direct edits.
+`effort` is set per role and overrides the session's effort level. It is a property of the role, not a ceiling inherited from the caller — a low-effort session can still dispatch `senior-reviewer` at high effort.
 
-Do not enable `acceptEdits`, `auto`, `dontAsk`, or `bypassPermissions` in bundled agent definitions without an explicit maintainer-approved use case and risk analysis.
+`disallowedTools: Agent` on the five leaf roles is what actually prevents a third layer of nesting. Claude Code allows nesting three layers below the main conversation by default, so prompt text alone does not stop a spawn — omitting `Agent` from `tools` and listing it in `disallowedTools` does.
 
-Do not set `isolation: worktree` globally. Use it only for assignments whose required base state is explicit, because an isolated subagent worktree may not include current-session changes.
+Set `tools` to the minimum each role needs. Only `local-orchestrator` gets `Agent`. Its broad tool list is the ceiling its children must stay within, not permission for unassigned direct edits.
 
-Do not create custom agents with names that shadow Claude Code's built-in agent types. Use the custom names listed above.
+Do not enable `acceptEdits`, `auto`, `dontAsk`, or `bypassPermissions` without an explicit maintainer-approved use case and risk note.
+
+Do not set `isolation: worktree` in any bundled definition. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so isolation is a per-task root decision with the base ref recorded and verified.
+
+Do not create agents whose names shadow Claude Code's built-in agent types. Use the names above.
 
 ## Handle the Global CLAUDE.md Safely
 
-The full global coding-agent instructions have already been added to `$GLOBAL_CLAUDE_MD`.
+The full instructions are already in `$GLOBAL_CLAUDE_MD`. Do not duplicate them.
 
-Do not duplicate those instructions elsewhere.
+If it does not exist: create it with the pointer section below, and tell me to add the full instructions from `custom-instructions/global-coding-agent-instructions.md`. Do not fabricate them.
 
-Inspect `$GLOBAL_CLAUDE_MD` if it exists.
+If it exists:
 
-If `$GLOBAL_CLAUDE_MD` does not exist:
-- Create it with the small pointer section below.
-- Do not fabricate the full global instruction set. Tell me to add it from `custom-instructions/global-coding-agent-instructions.md`.
+- Preserve everything outside the `<!-- coding-agent-playbook-claude-code:start -->` and `<!-- coding-agent-playbook-claude-code:end -->` markers.
+- Migrate one valid legacy `claude-code-agent-playbook` marker pair rather than appending a duplicate section.
+- If exactly one well-ordered marked section exists, back it up and replace only that inclusive block.
+- If neither marker exists, append the marked section.
+- If only one marker exists, either is duplicated, or the end precedes the start: stop and report the malformed state without writing.
+- If the pointer already appears to be present, report the possible duplication and delete nothing.
 
-If `$GLOBAL_CLAUDE_MD` already exists:
-- Preserve it.
-- Preserve all user-authored content outside the exact `<!-- coding-agent-playbook-claude-code:start -->` and `<!-- coding-agent-playbook-claude-code:end -->` markers. Migrate one valid legacy `claude-code-agent-playbook` marker pair instead of appending a duplicate section.
-- If exactly one well-ordered marked section exists, create a timestamped backup and replace only that inclusive block with the current small reference section.
-- If neither marker exists, add the marked small reference section.
-- If only one marker exists, either marker is duplicated, or the end appears before the start, stop and report the malformed state without writing the file.
-- If the existing file already appears to duplicate this pointer section, report that possible duplication but do not delete anything.
-
-The pointer section should be:
+The pointer section is:
 
 ```markdown
 ## Global Reference Documents and Subagent Support
@@ -158,13 +143,13 @@ The primary global coding-agent behavior may already be configured in this CLAUD
 
 Supporting global reference documents live under the Claude Code home references directory:
 
-- `references/README.md` — map of available global reference docs
-- `references/model-routing.md` — mandatory Claude model, effort, permission, tool, depth, escalation, and acceptance rules
-- `references/subagents.md` — Claude Code subagent delegation rules, assignment template, and acceptance checklist
-- `references/worktrees.md` — root-owned task-local worktree budgeting, Claude Code isolation, integration, cleanup, and preservation rules
-- `references/multi-session-coordination.md` — Claude Code session discovery, naming, ownership, sequencing, conflict detection, and integration guidance
-- `references/reference-doc-routing.md` — how to decide which docs to consult and how to treat them
-- `references/templates/` — templates for repository-level CLAUDE.md, architecture, testing, access control, design system, release, API, data model, active work, task graphs, and worktree manifests
+- `references/README.md` — map of the available global reference docs
+- `references/model-routing.md` — how Claude Code resolves a subagent's model, what overrides what, effort semantics, permission modes, tool boundaries, and nesting depth
+- `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
+- `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
+- `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
+- `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
+- `references/templates/` — templates for repository CLAUDE.md, architecture, testing, access control, design system, release, API contracts, data model, active work, task graphs, and worktree manifests
 
 Reusable Claude Code skills live under the Claude Code home skills directory:
 
@@ -184,67 +169,52 @@ Custom Claude Code subagents live under the Claude Code home agents directory:
 - `agents/test-triager.md`
 - `agents/isolated-worker.md`
 
-Reference documents are supporting context, not automatic truth. For repository tasks when subagents are available, the root Claude Code session delegates actual execution to at least one bounded subagent and remains accountable for root orchestration, integration, validation, acceptance, and the final response. Direct root execution is limited to unavailable subagents, an explicit user prohibition, or a specific authority-bound action; record the exact exception.
+Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
 
-The root owns a finite manifest, total subagent budget, and child-specific permits. The actual user-selected main-session model is the root ceiling: Opus rank 3, Sonnet rank 2, Haiku rank 1. Every managed route is explicit and root-permitted, and every `Agent` invocation passes a model with child rank at or below parent rank; automatic or omitted-model routes are rejected. Bundled definitions fail closed at Haiku, and their fixed effort must fit the parent ceiling. Equal-tier routing is valid and depth does not force a drop. Descendants cannot request upgrades. Only the root may route a new depth-1 replacement within the actual root ceiling, even when stronger than the failed child. Unknown, unavailable, or substituted models are not accepted silently.
+Pass an explicit `model` on every `Agent` dispatch; never leave it to default. Keep each child at or below the main session's tier (`opus` > `sonnet` > `haiku`) and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating does not require stepping down. Bundled definitions pin `model: haiku` so an omitted-model dispatch fails closed. Note that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`, and organization allowlists can substitute; verify rather than assume when attribution matters. `effort` comes from the agent definition and overrides session effort — it is a property of the role, not a ceiling inherited from the caller.
 
-Depth 1 contains named direct workers or `local-orchestrator`. A permitted local orchestrator may use only root-permitted depth-2 leaves, and only after nesting support and an active `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` setting are verified. Depth-2 leaves omit `Agent` and cannot spawn; depth 3 is prohibited. Every child stays at or below its parent in model, effort, permission mode, tools, scope, workspace, and authority. If either gate is unavailable, depth 1 executes directly without `Agent`; the setting is not changed without authorization.
+Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in model, permissions, tools, scope, workspace, and authority.
 
-The auxiliary-worktree budget starts at zero and is separate from the subagent budget. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. Before the final response, the root removes each task-created auxiliary under verified gates or preserves it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation. The active host-managed worktree remains under the host lifecycle.
+Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
 
-The root Claude Code session must verify implementation-relevant claims against primary evidence such as current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
+The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
 
-When delegating to subagents or coordinating independent Claude Code sessions, pass only relevant reference document names, paths, or sections. Do not dump large documents or full session transcripts into prompts unless necessary.
+Verify implementation-relevant claims against primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
+
+When delegating to subagents or coordinating independent sessions, pass only the relevant document names, paths, or sections. Do not dump large documents or full session transcripts into prompts.
 
 The root session remains accountable for the final plan, final diff, validation, and final response.
 ```
 
-If adding this to an existing `CLAUDE.md`, insert it under the heading `## Global Reference Documents and Subagent Support` and do not duplicate a similar existing section.
-
 ## Create Supporting Files
 
-Use the contents from this repository as the canonical source for:
+Use this repository's contents as the canonical source for `references/`, `skills/`, and `agents/`. Preserve the intent, names, descriptions, model defaults, effort levels, permission modes, tools, and instructions.
 
-- `references/README.md`
-- `references/model-routing.md`
-- `references/subagents.md`
-- `references/multi-session-coordination.md`
-- `references/reference-doc-routing.md`
-- `references/templates/*.md`
-- `skills/*/SKILL.md`
-- `agents/*.md`
-
-Preserve the same intent, names, descriptions, Claude model defaults, effort levels, permission modes, tools, and instructions. If the installed Claude Code version uses a different supported subagent or skill schema, adapt only as necessary and report the exact adjustment. Do not substitute an unknown model or invent model-specific agent copies.
+If the installed Claude Code version uses a different supported frontmatter schema, adapt only as necessary and report the exact adjustment. Do not substitute an unknown model or invent model-specific agent copies.
 
 ## Validation
 
-After creating or updating files:
-
-1. Print the resulting file tree for `$CLAUDE_HOME`, `$GLOBAL_REFERENCES_HOME`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME`.
+1. Print the resulting tree for `$CLAUDE_HOME`, `$GLOBAL_REFERENCES_HOME`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME`.
 2. Confirm no repository files were modified.
-3. Confirm each agent Markdown file has valid YAML frontmatter with `name`, `description`, `model`, `effort`, `permissionMode`, and `tools`; each managed `model` is the fail-closed `haiku` alias and each description rejects automatic selection.
-4. Confirm read-only roles use `permissionMode: plan` and exclude `Edit` and `Write`.
-5. Confirm write-capable bundled roles use `permissionMode: default`.
+3. Confirm each agent file has valid YAML frontmatter with `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`, and that every `model` is `haiku`.
+4. Confirm `read-only-explorer`, `docs-researcher`, and `senior-reviewer` use `permissionMode: plan` and list neither `Edit` nor `Write`.
+5. Confirm `test-triager`, `isolated-worker`, and `local-orchestrator` use `permissionMode: default`.
 6. Confirm each `SKILL.md` has YAML frontmatter with `name` and `description`.
-7. Confirm the exact expected agent set exists: `local-orchestrator.md`, `read-only-explorer.md`, `senior-reviewer.md`, `docs-researcher.md`, `test-triager.md`, and `isolated-worker.md`. Confirm each default model is the fail-closed `haiku` alias, only `local-orchestrator.md` lists `Agent`, no model-specific role copies were created, and no bundled definition sets `isolation: worktree`.
-8. Confirm `references/model-routing.md`, `references/multi-session-coordination.md`, `references/worktrees.md`, `references/templates/active-work-record.md`, `references/templates/task-graph.md`, `references/templates/worktree-manifest.md`, and all six managed skills listed above exist.
-9. Confirm the routing docs cover actual Opus, Sonnet, and Haiku roots, explicit root-permitted routing, definition-level effort, equal-tier children, no forced tier drop, the required depth-cap gate, root-only replacement routing, and unknown or unavailable model handling. Confirm only Claude Code paths, commands, model aliases, effort fields, permission modes, tool names, and subagent schemas were installed.
-10. Report any files backed up.
-11. Report any files skipped and why.
-12. Report any assumptions.
-13. Report whether the small `CLAUDE.md` pointer section was created, updated, already present, or skipped.
+7. Confirm all six agents exist, that only `local-orchestrator` lists `Agent` in `tools`, that the other five list `Agent` in `disallowedTools`, that no model-specific copies were created, and that no definition sets `isolation: worktree`.
+8. Confirm every reference document, template, and skill listed above exists.
+9. Confirm the routing docs state that nesting is enabled by default at three layers, that this playbook caps at two, that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition, that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation model, and that effort is a role property rather than an inherited ceiling.
+10. Confirm only Claude Code paths, commands, model aliases, effort levels, permission modes, tool names, and frontmatter fields were installed.
+11. Report files backed up, files skipped and why, assumptions made, and whether the pointer section was created, updated, already present, or skipped.
 
 Final response format:
 
 ```text
 Summary:
-- Created or updated the global Claude Code reference structure.
-- Created or updated global Claude Code skills.
-- Created or updated global Claude Code subagent definitions.
+- Created or updated the global reference structure, skills, and subagent definitions.
 - Left the existing global CLAUDE.md instruction section untouched.
 
 Files:
-- [list created or updated files]
+- [created or updated]
 
 Verification:
 - [checks performed and results]
@@ -252,4 +222,4 @@ Verification:
 Notes:
 - [backups, skipped files, assumptions, risks]
 ```
-```
+````

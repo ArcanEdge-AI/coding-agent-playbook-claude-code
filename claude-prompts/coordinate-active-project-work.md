@@ -1,27 +1,31 @@
 # Prompt: Coordinate Active Project Work
 
-Use this prompt when multiple Claude Code sessions are working on related features in the same project.
+Use this when several Claude Code sessions are working on related features in the same project and someone needs to hold the whole picture.
 
 ```markdown
 Coordinate all active work for the current project.
 
-Use the `multi-session-coordination` skill and consult `references/multi-session-coordination.md`. Consult `references/worktrees.md` when any participating task owns or proposes an auxiliary worktree.
+Use the `multi-session-coordination` skill and consult `references/multi-session-coordination.md`. Consult `references/worktrees.md` if any participating task owns or proposes an auxiliary worktree.
 
-Identify the current project directory, repository, default branch, active branch, worktree, and applicable CLAUDE.md instructions from the environment. Do not ask me for information that can be detected reliably.
+Detect the project directory, repository, default branch, active branch, worktree, and applicable CLAUDE.md instructions from the environment. Do not ask me for anything you can determine reliably yourself.
 
-Use `Project - Three-to-Four-Word Description` for new Claude Code session names. Detect the project name and derive the description from the primary objective. Do not include literal square brackets or ask me for a name when the project and task are already clear. If you cannot rename the current session directly, return the exact recommended name and `/rename` command.
+Where cross-session messaging is enabled, use `ListAgents` to see which sessions you can reach and `SendMessage` to ask them directly what they own and what they assumed. A session's own answer is stronger evidence than reconstruction from its commits. Note that inbound delivery can be restricted by settings and that some session kinds receive without being able to reply — check what each row supports rather than assuming a round trip.
 
-Begin with related Claude Code sessions active during the previous 72 hours when session history is accessible. Include older work when session or repository evidence shows that it remains unmerged, incomplete, blocked, contract-relevant, or otherwise active.
+Where messaging is unavailable, fall back to session metadata, branches, worktrees, pull requests, commits, diffs, tests, and any active-work records — and label the evidence accordingly.
 
-When complete session discovery is unavailable, inspect accessible session metadata, branches, worktrees, pull requests, commits, diffs, tests, and optional active-work records. Clearly distinguish directly reviewed sessions, session-metadata inference, repository-inferred work, user-supplied sessions, and potentially missing work.
+Use `Project - Three-to-Four-Word Description` for new session names. Detect the project name and derive the description from the primary objective. No literal square brackets, and do not ask me for a name when the project and task are already clear. If you cannot rename the current session yourself, return the exact recommended name and `/rename` command rather than claiming the rename happened.
 
-Classify relevant checkouts as host-managed primary, user-managed existing, or task-created auxiliary. Do not infer cleanup authority from age, inactivity, or clean status. Require each owning task to integrate and remove its own safe task-created auxiliaries or preserve them with exact path, owner, branch or HEAD, blocker, and next action. Do not defer task-local cleanup to scheduled automation.
+Begin with sessions active in the previous 72 hours where session history is accessible. Include older work when evidence shows it remains unmerged, incomplete, blocked, contract-relevant, or otherwise active. Repository state outranks session recency.
 
-Build a shared change map and identify conflicts across files, architecture, APIs, events, schemas, migrations, shared types, dependencies, authentication, user flows, and tests. Do not limit the review to Git merge conflicts.
+Label every work item explicitly as a directly reviewed session, a direct session report, session-metadata inference, repository-inferred work, user-supplied, or potentially missing. Do not claim you reviewed a session when you inspected only its branch, pull request, or diff.
 
-For each dependency, distinguish a software or service dependency from an accepted upstream work artifact or decision. Identify unmet blockers, handoff and integration verification gates, and the remaining chain of blocking work that controls integration completion.
+Classify relevant checkouts as host-managed primary, user-managed existing, or task-created auxiliary. Do not infer cleanup authority from age, inactivity, or a clean status. Each owning task integrates and removes its own auxiliaries when the gates pass, or preserves them with exact path, owner, branch or HEAD, blocker, and next action. Do not defer that to scheduled automation, and do not remove a host-managed, user-managed, or other session's worktree.
 
-Assign clear ownership for shared areas, recommend the safest implementation order, identify sessions that should continue or pause, and provide copy-ready instructions for each active session.
+Build a shared change map and find conflicts across all seven categories, not just Git merge conflicts: file and ownership, architecture, contract, data, dependency, behavioral, and validation. The dangerous case is two sessions doing correct work against different assumptions about a shared contract, both passing their own tests, merging cleanly, and being broken together.
+
+For each dependency, distinguish a software or service dependency from a required upstream work artifact or decision. Identify unmet blockers, the integration verification gates, and the remaining chain of blocking work that controls when integration can finish.
+
+Assign one owner for each shared file, contract, schema, or tightly coupled area. Recommend the safest implementation order, say which sessions should continue and which should pause, and give copy-ready instructions for each active session. Never tell a session merely to "coordinate with" another one — name the exact ownership, dependency, contract, or sequencing decision.
 
 Return:
 
@@ -30,19 +34,19 @@ Return:
 3. Active session and work summary
 4. Shared change map
 5. Conflict and overlap matrix
-6. Ranked integration risks
+6. Ranked integration risks (Critical / High / Medium / Low, each with evidence)
 7. Recommended implementation order
-8. Instructions for each session
+8. Copy-ready instructions for each session
 9. Integration verification checklist
 10. Open decisions requiring my approval
 
-Do not implement changes unless I explicitly ask. Do not claim complete coverage when relevant Claude Code session context is inaccessible. Ask for a specific session name or identifier only when missing context materially prevents a safe coordination decision.
+Do not implement changes unless I explicitly ask. Do not claim complete coverage when relevant session context is inaccessible — say what is missing and what it could change. Ask for a specific session name or identifier only when the missing context genuinely prevents a safe coordination decision.
 ```
 
-Optional constraints can be added in plain language, for example:
+Add constraints in plain language as needed, for example:
 
 - Prioritize one feature.
-- Include a known session.
+- Include a session I know about.
 - Exclude an abandoned branch.
-- Prevent database changes until approval.
-- Coordinate only planning and review work.
+- Block database changes until I approve them.
+- Coordinate planning and review only.

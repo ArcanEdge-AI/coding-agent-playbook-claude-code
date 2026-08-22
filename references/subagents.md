@@ -1,179 +1,166 @@
-# Claude Code Subagent Delegation Reference
+# Delegating to Claude Code Subagents
 
-The root Claude Code session is the orchestrator and senior developer. For every repository task, it delegates actual execution to at least one bounded subagent when subagents are available. Subagents execute bounded work but do not own the final outcome.
+The root session is the senior engineer. Subagents are how it buys parallelism, context isolation, and independent verification — not how it avoids thinking.
 
-The root session exclusively owns:
+This document covers *when* to delegate, *what* to put in an assignment, and *how* to accept the result. `model-routing.md` covers the mechanics of model, effort, permissions, tools, and depth.
 
-- task framing and the finite root manifest
-- root ready-set transitions, permits, and total subagent budget
-- architecture and design judgment
-- cross-subtree conflict resolution
-- worktree permits and lifecycle decisions
-- integration, validation, and final acceptance
-- authority-bound actions and approvals
-- final diff and user-facing response
+## What a subagent actually gives you
 
-## Bundled Claude Code Agents
+Understanding the mechanism prevents most delegation mistakes.
 
-| Agent | Fail-closed default / normal explicit model / fixed effort | Permission | Tools | Depth role and best use |
-| --- | --- | --- | --- | --- |
-| `local-orchestrator` | Haiku / Sonnet / high | Default | Agent, Read, Grep, Glob, Bash, Edit, Write, WebFetch, WebSearch | Depth 1 only. Manages one bounded subset through root-permitted leaves when a strict split creates real leverage. |
-| `read-only-explorer` | Haiku / Haiku / low | Plan | Read, Grep, Glob | Depth-1 worker or depth-2 leaf. Maps code paths and existing patterns. |
-| `docs-researcher` | Haiku / Haiku / low | Plan | Read, Grep, Glob, WebFetch, WebSearch | Depth-1 worker or depth-2 leaf. Verifies authoritative documentation. |
-| `test-triager` | Haiku / Sonnet / medium | Default | Read, Grep, Glob, Bash, Edit | Depth-1 worker or depth-2 leaf. Diagnoses tests and makes only authorized diagnostic edits. |
-| `isolated-worker` | Haiku / Sonnet / medium | Default | Read, Grep, Glob, Edit, Write, Bash | Depth-1 worker or depth-2 leaf. Implements bounded changes; the name does not imply a worktree. |
-| `senior-reviewer` | Haiku / Sonnet / high | Plan | Read, Grep, Glob, Bash | Depth-1 worker or depth-2 leaf. Reviews meaningful artifacts and validation. |
+A subagent starts with **a fresh context window**. It sees your prompt and nothing else — not your conversation, not your files, not what the user said three turns ago. It works, then returns **one final message**; its tool calls never enter your context.
 
-Source agent definitions live under `agents/` and install to the resolved user-level Claude Code agents directory. Repository-specific definitions belong under `.claude/agents/`. Every Markdown definition pins a fail-closed Haiku `model`, fixed role `effort`, `permissionMode`, and `tools` values. Only `local-orchestrator` includes `Agent`; execution leaves omit it. Claude Code's per-invocation `model` override lets one definition serve all approved model routes, so the playbook does not duplicate roles into model-specific agent files. The descriptions prohibit automatic selection while this bounded contract is active; every accepted route is explicit and root-permitted.
+That produces three genuine advantages:
 
-## Default Subagent Execution
+1. **Context isolation.** Reading 40 files to answer one question costs the subagent's context, not yours.
+2. **Parallelism.** Independent subtasks run concurrently.
+3. **Independent judgment.** A reviewer that never saw the implementer's reasoning cannot inherit the implementer's blind spot.
 
-Use at least one bounded subagent execution assignment for every repository task when subagents are available. The root frames the work, routes the assignment, and verifies the result; one direct worker may complete the entire bounded execution assignment while the root retains orchestration, integration, verification, and final acceptance.
+And two costs that are easy to underestimate:
 
-Default assignments include planning evidence, repository exploration, isolated implementation, review, test reproduction and triage, documentation verification, mechanical audits, and call-site or configuration discovery.
+1. **Everything it needs must be in the prompt.** A vague assignment produces vague work, and you will not see the wrong turn — only the confident summary at the end.
+2. **You cannot see how it got there.** The final message is all you get, so the assignment must demand checkable evidence.
 
-Root direct execution is allowed only when subagents are unavailable, the user explicitly forbids delegation, or a specific authority-bound action cannot be delegated. Record the exact exception and limit it to that action. High-impact work still delegates bounded evidence gathering or independent review while the root retains the decision and final acceptance.
+Delegate when you want one of the advantages. Do not delegate a task you could finish in two tool calls; the round trip costs more than the work.
 
-## Finite Manifest and Dependency-Aware Orchestration
+## The roles
 
-Keep a single bounded task as one node. Before fan-out, the root records a finite manifest and total subagent budget. Describe each permitted node with:
+| Role | Model default / typical | Effort | Mode | Tools | Use it for |
+| --- | --- | --- | --- | --- | --- |
+| `read-only-explorer` | haiku / haiku | low | plan | Read, Grep, Glob | Mapping call paths, finding every call site, learning the local conventions before you design. |
+| `docs-researcher` | haiku / haiku | low | plan | Read, Grep, Glob, WebFetch, WebSearch | Verifying external library, API, or platform behavior against the version actually installed. |
+| `test-triager` | haiku / sonnet | medium | default | Read, Grep, Glob, Bash, Edit | Reproducing a failure and finding its root cause with proof. Runs suites; plan-mode roles cannot. |
+| `isolated-worker` | haiku / sonnet | medium | default | Read, Grep, Glob, Edit, Write, Bash | Implementing a bounded change whose design is already settled. |
+| `senior-reviewer` | haiku / sonnet | high | plan | Read, Grep, Glob, Bash | Reviewing a real artifact for defects, regressions, and risk before acceptance. |
+| `local-orchestrator` | haiku / sonnet | high | default | Agent + read/write/web | One slice that genuinely fans out into independent parallel parts. |
 
-| Field | Purpose |
+Every definition pins `model: haiku` so an omitted-model dispatch fails closed. Pass the model you actually want on every call. Every leaf role lists `disallowedTools: Agent`, which is what actually prevents a third layer of nesting.
+
+Definitions live in `agents/` and install to the Claude Code home agents directory. A repository can override or add roles under `.claude/agents/`.
+
+## When to delegate, and to whom
+
+| Situation | Route |
 | --- | --- |
-| Node and permit | Stable node ID plus root-issued authorization, counted against the total budget. |
-| Parent / child lineage | The parent ID and child ID; retries retain both. |
-| Completion subset | Non-empty work strictly smaller than the parent's remaining subset. |
-| Goal | One concrete outcome. |
-| Inputs | Only the code, artifacts, decisions, or documentation the node may consume. |
-| Output and acceptance | The artifact or finding to return and the evidence required to accept it. |
-| Depends on | Only upstream nodes whose accepted output is required before this node can begin correctly. |
-| Ownership or read scope | Disjoint paths or state a writer may change, or bounded sources a reader may inspect. |
-| Model / effort ceiling | Actual root model and rank, explicit per-invocation child model, selected definition's fixed effort, and proof that both effective capabilities are at or below the parent ceiling. |
-| Permission / tools | Explicit `permissionMode` and tools allowlist, equal to or narrower than the parent boundary. |
-| Workspace | Exact shared workspace or root-permitted auxiliary. Worktree permits are separate from node permits. |
-| Verification gate | Proportionate primary evidence before fan-in. |
+| "How does this area work? Where would this change go?" | `read-only-explorer` |
+| "Find every place that calls / reads / emits X." | `read-only-explorer` |
+| "Does this library actually behave that way in the version we use?" | `docs-researcher` |
+| "CI is red and I don't know why." | `test-triager` |
+| "This test fails intermittently." | `test-triager` |
+| "Make this specific, already-designed change." | `isolated-worker` |
+| "Is this diff safe to accept?" | `senior-reviewer` |
+| "Audit these 15 files independently, then consolidate." | `local-orchestrator` |
+| "Design this system." | Nobody — that is the root's job. |
 
-An edge is real only when the downstream node cannot begin correctly without an accepted upstream artifact or decision. Do not serialize work merely because it appears in list order, and do not parallelize nodes that share mutable state, overlapping writes, unresolved contracts, or insufficient runtime capacity.
+For a repository task, prefer delegating at least one bounded piece of execution when subagents are available: exploration, review, triage, research, or the implementation itself. The root stays accountable for framing, integration, validation, and the final answer.
 
-Only dispatch ready manifest nodes with valid root permits and remaining total budget. Runtime-full is backpressure, not permission to queue speculative descendants. Retry a failed node with its existing ID and permit. A replacement consumes a new permit and budget. Expand the manifest or budget only for a newly discovered dependency, invalidated gate, or changed user scope; get user approval immediately before a material-cost expansion.
+Direct root execution is the right call when subagents are unavailable, the user asked you not to delegate, the action requires authority that must stay with the root, or the task is small enough that delegation costs more than it saves. Say which applies rather than delegating for form's sake.
 
-Verification must judge artifacts against acceptance criteria and primary evidence, not the producer's self-assessment. When risk warrants it, use a separate `senior-reviewer` or `test-triager` node with only the necessary artifacts and criteria. The root still decides acceptance.
+## Writing an assignment that works
 
-## Two Delegated Generations
-
-The root is depth 0. Depth 1 contains callable named Claude Code agents acting as direct workers or a `local-orchestrator`. Depth 2 contains execution leaves that omit `Agent` and cannot spawn. Depth 3 is prohibited.
-
-Every child must remain equal to or narrower than its parent in inputs, data access, scope, non-goals, write ownership, model, effort, permission mode, tools, workspace, authority, and approval boundary. Sibling write ownership must be disjoint. Equal-tier routing is valid; depth does not force a model or effort drop. Descendants cannot issue permits, expand budgets, change root topology, advance root-ready work, resolve cross-subtree conflicts, or route themselves to, or request, a stronger model or effort.
-
-A depth-1 direct worker executes its assigned subset. A depth-1 `local-orchestrator` may spawn only root-permitted depth-2 leaves already named in the manifest, only while the Claude Code runtime supports nested subagents, and only after the required depth cap below is active and verified. It validates child outputs and returns a compact lineage-and-evidence bundle. If no valid permitted strict-subset split exists or either capability gate is unavailable, it executes directly without `Agent` or reports upward; it must not emulate nesting with an independent session.
-
-When a descendant reports that its ceiling is insufficient, only the root may route a new depth-1 replacement. The root may select any approved tier at or below the actual root ceiling, even when that tier is stronger than the failed child. The replacement needs a new permit, available budget, a recorded reason, and an explicit verification plan; it is not a descendant upgrade.
-
-`CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is a required capability gate for local orchestration, not an optional hardening measure. It must already be active in an authorized settings scope and verified before a depth-1 local orchestrator may spawn. The root does not install or change it without authorization. It reinforces but does not replace the instruction contract.
-
-Keep local delegation economical: send only the minimum relevant paths and accepted artifacts; reuse accepted results; avoid duplicate discovery; choose the smallest suitable model and effort; and omit full history, transcripts, and long logs.
-
-## Worktrees Are Not Delegation Units
-
-Start in the current workspace with an auxiliary-worktree budget of zero. Read-only agents and disjoint writers normally share it. Serialize overlapping writes unless concrete branch or filesystem isolation makes an auxiliary checkout necessary.
-
-Only the root may raise the worktree budget, issue a worktree permit, create or adopt an auxiliary, change its purpose, move it, or remove it. The root may authorize one active auxiliary without additional approval; two or more require user approval for the exact count and reasons. Descendants receive an exact workspace and report any isolation need upward. They must not set `isolation: worktree` on their own child calls. Retries reuse a compatible assigned workspace.
-
-Consult `references/worktrees.md`. Before completion, the root integrates and safely removes each task-created auxiliary or preserves it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation. The active host-managed worktree remains under the host lifecycle.
-
-## Independent Claude Code Sessions
-
-Independent Claude Code sessions are not subagents. They may have separate conversation history, branches, worktrees, assumptions, and implementation ownership.
-
-When independent sessions already work on related areas, consult `references/multi-session-coordination.md` and use the `multi-session-coordination` skill before adding more parallel work. Do not treat a session summary as authoritative without primary evidence, and do not use more subagents merely to mask an existing ownership conflict.
-
-## Mandatory Routing
-
-Consult `references/model-routing.md` before delegation.
-
-- Select a named Claude Code agent explicitly.
-- Record the model actually selected for the root session; never assume Opus.
-- Use the smallest explicit model and select the lowest fixed-effort agent definition that can complete the bounded subset reliably.
-- Use Opus rank 3, Sonnet rank 2, and Haiku rank 1. Require `child rank <= parent rank`; equal rank is valid.
-- With an Opus root, normally use Sonnet or Haiku and record why any exceptional Opus child is necessary. A Sonnet root may use Sonnet or Haiku; a Haiku root may use Haiku only.
-- Use only explicit root-permitted `Agent` routes. Pass the intended child model on every invocation; do not accept automatic delegation or an omitted model. Agent frontmatter fails closed at Haiku and is not execution authority.
-- Pin `permissionMode` and the exact tools allowlist.
-- Do not use an inherited model unintentionally or claim an unsupported per-invocation effort override. Record the selected definition's fixed effort and verify the effective value.
-- Keep each child at or below its parent's model, effort, permission, and tool ceilings.
-- Do not silently escalate to Opus, higher effort, broader permissions, more tools, or worktree isolation.
-- Treat model substitutions and unresolved effective models as failed routing gates. Use the exact known parent family only when it can be explicitly enforced and verified; otherwise keep the work with the parent or report the limitation.
-- Stop and report when inherited limits are insufficient; descendants do not request upgrades.
-
-## Assignment Template
+The subagent sees only this. Write it as if for a competent engineer who has never seen the repository.
 
 ```text
-Role:
-You are the [local-orchestrator/read-only-explorer/docs-researcher/test-triager/isolated-worker/senior-reviewer] subagent for this task.
-
-Selected Claude agent and model:
-[Named agent, explicit per-invocation model alias or ID, actual root model and rank, parent effective model, and child-at-or-below proof.]
-
-Definition effort and parent ceiling:
-[Selected definition's fixed effort; effective effort; parent model and effort ceilings; proof the child is at or below both.]
-
-Permission mode and tools:
-[Exact permissionMode and tools; proof they are equal to or narrower than the parent boundary.]
-
-Goal and acceptance condition:
-[One concrete outcome and the primary evidence required to accept it.]
+Goal:
+Find where checkout tax is calculated and identify the smallest safe insertion
+point for a per-customer exemption flag.
 
 Context:
-[Relevant request, repository constraints, accepted inputs, and branch/diff state.]
+We are adding tax exemption for B2B customers. The customer record already has
+an `accountType` field. No decision has been made about where exemption lives.
 
-Lineage and inherited constraints:
-[Root/node lineage; parent ID and child ID; parent remaining subset; this strict non-empty subset; inherited data, scope, non-goals, authority, and approval limits.]
+Scope:
+Inspect the checkout, cart, customer, and tax-calculation code paths.
 
-Permit and ownership:
-[Root-issued node permit; total-budget status; read scope or write ownership; sibling non-overlap.]
+Non-goals:
+Do not edit anything. Do not propose a new tax engine. Do not evaluate whether
+exemption is the right feature.
 
-Workspace:
-[Exact shared workspace or root-permitted auxiliary; separate worktree permit if applicable.]
+Evidence required:
+File paths, function names, the call chain from checkout entry to tax
+computation, the tests that cover it, and any existing exemption-like concept.
 
-Reference documents:
-[Relevant path and authority classification. Verify claims against current primary evidence.]
+Acceptance condition:
+I can open each path you name and see the symbol you claim is there.
 
-Scope and non-goals:
-[Exact allowed and prohibited work.]
-
-Local-child limits:
-[For local-orchestrator only: exact root-permitted depth-2 leaves, plus proof that nested subagents are supported and CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2 is active. Leaves omit Agent and cannot spawn.]
-
-Evidence and validation:
-[Paths, symbols, commands, runtime observations, or docs required.]
-
-Escalation conditions:
-[Ambiguity, conflicting evidence, scope expansion, capability ceiling, or authority boundary.]
-
-Output:
-- Findings or changed files
-- Evidence and validation
-- Risks or uncertainty
-- Escalation needed
-- Parent return bundle with compact lineage, accepted artifact paths, and blockers
+Stop and report if:
+The tax logic turns out to live behind a third-party service, or the call chain
+depends on runtime configuration you cannot resolve by reading.
 ```
 
-## Acceptance Checklist
+Compare with what not to send:
 
-Before accepting subagent work, the root verifies:
+```text
+Look into the tax stuff and figure out what to do.
+```
 
-- the permit, lineage, strict subset, and total-budget status
-- disjoint sibling ownership
-- actual root model and rank recorded without assuming Opus
-- explicit invocation model and definition-level effort, plus effective model, effort, permission mode, and tools at or below parent ceilings, with equal-tier routing accepted
-- per-invocation model recorded and no environment, allowlist, provider, resume, or runtime substitution left unresolved
-- route was explicit and root-permitted rather than automatic, and no per-invocation effort override was assumed
-- exact workspace use and no descendant worktree lifecycle action
-- scope compliance and required output
-- primary evidence and validation
-- minimal task-related edits with no unrelated changes
-- any root-routed replacement's new permit, budget, reason, verification, and proof that it remains at or below the actual root ceiling
-- required fan-in gates and combined validation
-- every task-created auxiliary's integration evidence and final `removed` or exact-blocker `preserved` disposition
-- the complete final diff
+The second one will come back with something confident and probably wrong, and you will not know which.
 
-Never accept a subagent conclusion solely because it sounds confident.
+### The elements worth including
+
+- **Goal** — one outcome, stated so you could verify it.
+- **Context** — the request, the constraint, the current state. Only what bears on the task.
+- **Scope and non-goals** — where to look, and what to leave alone. Non-goals prevent the most common failure, which is scope drift.
+- **Evidence required** — name the artifacts: paths, symbols, command output, reproduction steps, citations.
+- **Acceptance condition** — how you will decide the result is good.
+- **Stop conditions** — the situations where stopping beats continuing.
+- **Write ownership** — for any subagent that edits, the exact files it owns. Concurrent writers must never share a file.
+- **Workspace** — the current one, unless the root has issued a worktree permit.
+- **Model** — always explicit on the call.
+
+Keep the payload small. Send paths and accepted results, not history, transcripts, or logs.
+
+## Running several at once
+
+Independent work runs concurrently. Dispatch multiple subagents in a single message and they run in parallel.
+
+Sequence them only for a real dependency: the second genuinely cannot start without the first one's accepted output. Ordering that merely reflects how you listed the tasks is not a dependency and costs you the parallelism.
+
+Before running writers in parallel, check that their file ownership is disjoint. When it is not, serialize them. A separate worktree is not the fix for overlapping writes — it converts a merge conflict into a harder merge conflict later.
+
+Claude Code enforces a concurrent-subagent limit (20 by default) and fails a spawn beyond it. That is backpressure: let running work finish rather than queuing speculative work.
+
+## Nesting
+
+Claude Code allows nesting up to three layers below the main conversation by default. This playbook uses two:
+
+```text
+layer 0   root session
+layer 1   direct worker, or local-orchestrator
+layer 2   leaves dispatched by local-orchestrator — cannot spawn
+```
+
+`local-orchestrator` may dispatch immediately; there is no flag to verify first. The cap is enforced by the leaf definitions carrying `disallowedTools: Agent`, optionally reinforced by setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2`. See `model-routing.md` for detail.
+
+Use `local-orchestrator` sparingly. It earns its layer only when a slice genuinely fans out into independent parts whose intermediate output you do not want. When one worker can do the slice, dispatch that worker directly.
+
+## Accepting the work
+
+A returned result is a claim until you check it.
+
+Verify:
+
+- The acceptance condition is met, by evidence rather than assertion.
+- Named paths and symbols exist and say what the result says they say. Spot-check at least the load-bearing ones.
+- Nothing outside the assigned scope changed.
+- Validation ran, or its absence is stated with a reason.
+- Any edits are minimal and traceable to the assignment.
+- The final diff — read it yourself.
+
+When two subagents disagree, resolve it with primary evidence: the code, the tests, the schema, the logs, the runtime behavior. Do not average their conclusions or prefer the more confident one.
+
+When a subagent fails, one retry with a sharper assignment is reasonable. A second identical failure is information — report the blocker rather than retrying again.
+
+Never accept a conclusion solely because it sounds confident.
+
+## Worktrees are not delegation units
+
+Start in the current workspace. The auxiliary-worktree budget starts at zero and is separate from anything to do with subagents. Read-only subagents and disjoint writers share the workspace safely.
+
+Only the root may authorize `isolation: worktree` or create an auxiliary checkout, and only after recording the required base ref — an isolated subagent branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` says otherwise. Descendants use their assigned workspace and report isolation needs upward. See `worktrees.md`.
+
+## Independent sessions are not subagents
+
+A separate Claude Code session has its own history, branch, worktree, and ownership. You cannot dispatch it, and its summary is not evidence.
+
+When independent sessions are working on related areas, use the `multi-session-coordination` skill and `multi-session-coordination.md` before adding more parallel work. More subagents will not resolve an ownership conflict between sessions.

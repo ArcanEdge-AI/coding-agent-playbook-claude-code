@@ -1,127 +1,145 @@
 # Task Graph: [Task Name]
 
-Use this template only for work that benefits from a formal instruction-only task graph. Keep smaller or genuinely linear tasks in the normal working plan.
+Use this only for work that genuinely benefits from writing the topology down. Keep smaller or linear tasks in the normal working plan.
 
-## Graph Metadata
+This is a plan you maintain by hand. It is not a scheduler, and nothing here is mechanically enforced.
 
-- Goal: [One concrete outcome]
-- Owner: [Root Claude Code session or coordinating session]
-- Root owner: [Session that exclusively owns root topology, permits, budget, and ready set]
-- Actual root model and approved rank: [User-selected model; Opus 3 / Sonnet 2 / Haiku 1; never assume Opus]
-- Repository and worktree: [Current verified context]
-- Applicable instructions: [`CLAUDE.md` paths or other sources]
-- Status: [Proposed / Active / Blocked / Complete]
-- Last updated: [Timestamp or execution checkpoint]
-- Graph-mode reason: [Why the added structure is justified]
-- Multi-session preflight: [Not needed / completed with evidence / blocked]
+## Metadata
+
+- **Goal**: [one concrete outcome]
+- **Owner**: [the root session]
+- **Main session model**: [what the user actually selected — do not assume Opus]
+- **Repository and worktree**: [verified current context]
+- **Applicable instructions**: [`CLAUDE.md` paths or other sources]
+- **Status**: [Proposed / Active / Blocked / Complete]
+- **Last updated**: [timestamp or checkpoint]
+- **Why a graph**: [what makes the structure worth its cost]
+- **Multi-session preflight**: [not needed / completed, with evidence / blocked]
 
 ## Success Criteria
 
-- [Observable criterion]
-- [Required validation]
-- [Required user-visible result]
+- [observable criterion]
+- [required validation]
+- [required user-visible result]
+
+## Budgets
+
+- **Subagent count**: [expected number of dispatches across both layers]
+- **Auxiliary-worktree budget**: [default 0 — separate from anything about subagent counts; two or more active auxiliaries require user approval]
 
 ## Nodes
 
-- Root manifest and total subagent budget: [Finite depth-1 and depth-2 node IDs/count]
-- Node permit ledger: [Root permit; parent/child IDs; strict subset; ownership; named agent; explicit invocation model; definition-level effort; parent ceilings; permission/tools; acceptance]
-- Auxiliary-worktree budget: [Finite count; default 0 and separate from subagent budget; user approval required for 2 or more active auxiliaries]
-- Worktree permit ledger: [None, or root permits linked to exact workspace, owner, isolation reason, integration target, and cleanup condition]
+| ID | Work | Executor | Inputs | Output and acceptance condition | Depends on | Reads | Writes | Model | Role / effort | Mode / tools | Workspace | Verification gate | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| N0 | [bounded work] | [named role, or root] | [authoritative inputs] | [artifact + how you will accept it] | None | [read scope] | None | [explicit model] | [role / its fixed effort] | [permissionMode / tools] | [shared workspace, or W#] | [evidence required] | Ready |
 
-| ID | Parent / lineage | Work | Executor | Inputs | Output and acceptance condition | Depends on | Reads | Writes or mutable state | Explicit invocation model / fixed definition effort | Parent effective ceiling / child-at-or-below proof | Permission / tools | Exact workspace / worktree permit | Verification gate | Status |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| N0 | [Root or parent] | [Bounded work] | [Named subagent by default] | [Authoritative inputs] | [Artifact plus acceptance rule] | None | [Scope] | None | [Explicit per-invocation model / selected definition's fixed effort] | [Parent effective model and effort ceiling; `child rank <= parent rank`; or N/A] | [permissionMode / tools] | [Current shared workspace or W#] | [Evidence] | Ready |
+Node states: `Proposed`, `Ready`, `Running`, `Complete`, `Failed`, `Blocked`, `Superseded`.
 
-Use node states consistently: `Proposed`, `Ready`, `Running`, `Complete`, `Failed`, `Blocked`, or `Superseded`.
+Notes on the routing columns:
+
+- **Model** is passed explicitly on every dispatch, at or below the main session's tier (`opus` > `sonnet` > `haiku`). Equal tier is valid. Frontmatter pins `haiku` so an omitted model fails closed.
+- **Effort** comes from the role definition and overrides session effort. It is a property of the role, not a ceiling inherited from the caller — choose the role whose effort fits the work.
+- **Mode / tools** must be no broader than the caller's. Remember that `plan`-mode roles cannot reliably run test suites; route execution to `test-triager`.
 
 ## Dependency Edges
 
 | From | To | Consumed artifact or decision |
 | --- | --- | --- |
-| N0 | N1 | [Why N1 cannot correctly begin without accepted N0 output] |
+| N0 | N1 | [why N1 cannot correctly begin without N0's accepted output] |
 
-Do not add an edge solely to mirror list order.
+Every edge must survive this question:
 
-## Hidden-Edge Review
+> Can the downstream node begin correctly without an accepted output or decision from the upstream node?
 
-- Shared file writes: [None or exact conflicts]
-- Shared mutable state: [Ports, services, environments, locks, credentials, rate limits, or cost]
-- Schema, interface, migration, or contract ordering: [None or exact dependency]
-- External Claude Code session, branch, worktree, or pull-request ownership: [None or exact constraint]
-- Worktree base state: [Current worktree or required verified starting point]
-- Auxiliary-worktree budget and lifecycle: [0 / exact permits and blockers]
-- Destructive, irreversible, production, sensitive, costly, or audience-facing actions: [None or approval node]
+If yes, delete the edge. Narrative order is not a dependency, and each false edge costs parallelism.
+
+## Hidden Constraints
+
+Things that order work without appearing as data edges:
+
+- **Shared file writes**: [none, or the exact conflicts]
+- **Shared mutable state**: [ports, services, environments, locks, credentials, rate limits, cost]
+- **Schema, interface, migration, or contract ordering**: [none, or the exact dependency]
+- **Other session, branch, worktree, or PR ownership**: [none, or the exact constraint]
+- **Worktree base state**: [current workspace, or the required verified starting point]
+- **Destructive, irreversible, production, sensitive, costly, or audience-facing actions**: [none, or the approval gate]
 
 ## Current Ready Set
 
-- [Node IDs whose dependencies and hidden constraints are satisfied]
+- [node IDs whose dependencies *and* hidden constraints are satisfied]
 
-Ready-node dispatch: [Only finite-manifest nodes whose dependencies and hidden constraints are satisfied, with root permits, remaining total budget, and runtime, safety, permission, and ownership or isolation capacity]
+Dispatch only these, and only while there is runtime, safety, permission, and ownership capacity. A concurrency limit is backpressure, not a reason to queue speculative work.
 
-## Local Child Subtrees
+## Fan-Out Subtrees
 
-| Parent node | Root-permitted depth-2 leaves | Local ownership and sibling non-overlap | Inherited constraints | Parent effective model / effort ceiling | Explicit child invocation model and at-or-below proof | Compact return bundle |
-| --- | --- | --- | --- | --- | --- | --- |
-| N1 | [Leaf IDs and permits] | [Paths/state; no overlap] | [Inputs, data, scope, permissions, tools, workspace, authority, approval boundary] | [Explicit ceiling] | [Child routes compared with ceiling] | [Lineage, accepted artifacts, evidence, blockers] |
+Fill this in only where a node uses `local-orchestrator`.
 
-Only `local-orchestrator` may receive `Agent`. Depth 1 executes directly when no valid permitted strict-subset split exists. Depth-2 leaves omit `Agent` and cannot spawn; depth 3 is prohibited. Runtime-full is backpressure. Retries reuse ID, permit, and compatible workspace. Replacements require a new root permit and budget. Only the root may route a replacement at any approved tier within the actual root ceiling, even when stronger than the failed child. Descendants preserve completed work and report insufficiency; they do not request upgrades. Limit expansion reasons to newly discovered dependencies, invalidated gates, or changed user scope; get approval immediately before a material-cost expansion.
+| Parent node | Leaves dispatched | Write ownership (must be disjoint) | Inherited boundary | Child models | Returned |
+| --- | --- | --- | --- | --- | --- |
+| N1 | [leaf roles and subtasks] | [paths or state; no overlap] | [inputs, data, scope, permissions, tools, workspace, authority] | [explicit models, at or below N1's] | [artifacts, evidence, blockers] |
 
-Use Opus rank 3, Sonnet rank 2, and Haiku rank 1. The invariant is `child rank <= parent rank`; equal rank is valid and depth does not force a drop. An Opus root normally uses Sonnet or Haiku and records why any exceptional Opus child is necessary. A Sonnet root may use Sonnet or Haiku. A Haiku root may use Haiku only. Treat an unverified or substituted model as a failed routing gate.
+Claude Code allows nesting three layers below the main conversation by default; this playbook uses two. `local-orchestrator` may dispatch immediately — there is no flag to verify. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`.
+
+Retries reuse the node ID and workspace. A second identical failure is information — report the blocker rather than retrying again. Only the root introduces a replacement node, at any tier within the main session's ceiling.
 
 ## Worktree Lifecycle
 
-Worktrees are not delegation units. Start in the current workspace with an auxiliary budget of zero. Only the root may issue a separate worktree permit or authorize `isolation: worktree`.
+Worktrees are not delegation units. Start in the current workspace with an auxiliary budget of zero. Only the root authorizes `isolation: worktree`.
 
-| Permit | Node or owner | Canonical path | Base ref and SHA | Branch or HEAD | Creation path and isolation reason | Integration target | Cleanup condition | State |
+Record the base ref deliberately: an isolated subagent branches from the repository default branch, not the parent's `HEAD`, unless `worktree.baseRef` is `"head"`.
+
+| Permit | Owner | Canonical path | Base ref and SHA | Branch or HEAD | Creation path and isolation reason | Integration target | Cleanup condition | State |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| W1 | [Owner] | [Exact path] | [Ref and SHA] | [Branch or detached SHA] | [`isolation: worktree`, `EnterWorktree`, host UI, or Git; why sharing fails] | [Accepted handoff] | [Required evidence] | [proposed / active / integration-ready / cleanup-ready / removed / preserved] |
+| W1 | [owner] | [exact path] | [ref and SHA] | [branch or detached SHA] | [`isolation: worktree`, `EnterWorktree`, host UI, or Git; and why sharing fails] | [accepted handoff] | [required evidence] | [proposed / active / integration-ready / cleanup-ready / removed / preserved] |
 
-Remove the placeholder row when no auxiliary exists. Descendants do not request isolation or create, adopt, repurpose, move, or remove worktrees. Before the final response, mark every task-created auxiliary `removed` with path and registration evidence or `preserved` with exact path, owner, branch or HEAD, blocker, and next action. Do not defer task cleanup to scheduled automation.
+Delete the placeholder row when no auxiliary exists. Descendants never request isolation or create, adopt, repurpose, move, or remove worktrees. Before the final response, mark each task-created auxiliary `removed` with path and registration evidence, or `preserved` with exact path, owner, branch or HEAD, blocker, and next action.
 
 ## Execution Ledger
 
-| Node | Attempt | Result | Evidence or produced artifact | Downstream nodes invalidated |
+| Node | Attempt | Result | Evidence or artifact | Downstream invalidated |
 | --- | --- | --- | --- | --- |
-| N0 | 1 | [Complete / Failed / Blocked] | [Path, command result, diff, or finding] | [None or IDs] |
+| N0 | 1 | [Complete / Failed / Blocked] | [path, command result, diff, finding] | [none, or IDs] |
 
 ## Completeness Check
 
-- Expected node IDs: [IDs]
-- Accepted node IDs: [IDs]
-- Missing node IDs: [IDs or None]
-- Failed node IDs: [IDs or None]
-- Blocked node IDs: [IDs or None]
-- Superseded node IDs: [IDs or None]
+Write these down before consolidating — this is where completeness silently disappears.
+
+- Expected: [IDs]
+- Accepted: [IDs]
+- Missing: [IDs or None]
+- Failed: [IDs or None]
+- Blocked: [IDs or None]
+- Superseded: [IDs or None]
 
 ## Approval Gates
 
 | Gate | Action | Exact scope and consequence | Required authority | Status |
 | --- | --- | --- | --- | --- |
-| G1 | [Action] | [Target, audience, cost, permanence, and recovery path] | [User or active permission-mode authority] | Blocked |
+| G1 | [action] | [target, audience, cost, permanence, recovery path] | [user, or active permission-mode authority] | Blocked |
 
-If no approval-gated action exists, write `None` and remove the placeholder row.
+Write `None` and delete the row if nothing here needs approval. Approval of the plan or an earlier node does not authorize a broader or different irreversible action, and the permission mode is never changed to avoid a prompt.
 
 ## Fan-In and Final Verification
 
-- Consolidation nodes: [IDs and expected inputs]
-- Preserved evidence identifiers: [Paths, node IDs, counts, severity, confidence]
-- Integrated validation: [Commands, runtime checks, or inspection]
-- Independent verification: [`senior-reviewer` or `test-triager` node, or reason not needed]
-- Final diff reviewed: [Yes / No]
-- Required nodes and gates complete: [Yes / No]
-- Every task-created auxiliary has a verified final disposition: [Yes / No / N/A]
+- **Consolidation nodes**: [IDs and expected inputs]
+- **Preserved evidence**: [paths, node IDs, counts, severity, confidence]
+- **Integrated validation**: [commands, runtime checks, inspection]
+- **Independent verification**: [`senior-reviewer` or `test-triager` node, or why it is not needed]
+- **Final diff reviewed**: [Yes / No]
+- **All required nodes and gates complete**: [Yes / No]
+- **Every task-created auxiliary has a final disposition**: [Yes / No / N/A]
+
+Give a verifier the source artifacts and acceptance criteria, not the producer's summary — a verifier handed a summary verifies the summary.
 
 ## Maintenance Rules
 
-- Let the root Claude Code session own root topology, ready-set transitions, permits, budgets, integration, authority-bound actions, and final acceptance.
-- Let `local-orchestrator` manage only its declared depth-2 subtree. No child changes root topology or root-ready work.
-- Require every child to remain equal to or narrower than its parent, with an explicit per-invocation Claude model and selected definition-level effort, `permissionMode`, and tools at or below the parent ceilings. Bundled agent frontmatter models fail closed at Haiku; reject automatic or omitted-model routes.
-- Record the actual root model and rank, accept equal-tier routes, and reject unresolved environment, allowlist, provider, resume, or runtime substitutions.
-- Give every child an exact workspace. Keep the auxiliary-worktree budget separate, default it to zero, and let only the root authorize or remove worktrees under `references/worktrees.md`.
-- Treat a dependency as real only when the downstream node consumes an accepted upstream artifact or decision.
-- Keep completed outputs unless their inputs become invalid.
+- The root owns topology, ready-set transitions, integration, authority-bound actions, and final acceptance.
+- `local-orchestrator` manages only its own subtree and never changes root topology or advances root-ready work.
+- Every child stays at or below its parent in model, permissions, tools, scope, data access, workspace, and authority. Pass the model explicitly; reject a dispatch whose effective model you cannot determine.
+- A dependency is real only when the downstream node consumes an accepted upstream artifact or decision.
+- Keep completed outputs unless their inputs actually became invalid.
 - Update the ready set after every accepted, failed, blocked, or superseded node.
-- Do not change or bypass Claude Code permission modes to advance a node.
-- Do not store credentials, sensitive access material, private local paths, full transcripts, or long logs.
-- Reuse accepted outputs and send only compact lineage, artifact paths, evidence, and blockers upward.
-- Preserve or remove the graph artifact according to repository policy after completion.
+- Never change or bypass a permission mode to advance a node.
+- Never store credentials, sensitive access material, private local paths, transcripts, or long logs here.
+- Send compact artifact paths, evidence, and blockers upward — not full histories.
+- Preserve or delete this artifact according to repository policy when the task completes.

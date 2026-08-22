@@ -13,6 +13,8 @@ Use this template only when a task creates, adopts, or coordinates auxiliary Git
 - User approval for two or more active auxiliaries: [N/A or exact approval]
 - Applicable `CLAUDE.md` instructions: [Paths]
 
+> **Record the base ref deliberately.** A subagent with `isolation: worktree` gets a worktree branched from the repository default branch, **not** from the parent session's `HEAD`, unless `worktree.baseRef` is set to `"head"`. Verify the actual checkout after creation rather than trusting the host default — otherwise a worker starts without the changes the current session just made.
+
 ## Permit Ledger
 
 | Permit | Node or owner | Canonical path | Base ref and SHA | Branch or HEAD | Write scope | Isolation reason and creation path | Integration target | Cleanup condition | State |

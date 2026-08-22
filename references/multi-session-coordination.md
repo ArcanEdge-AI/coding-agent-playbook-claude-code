@@ -1,48 +1,59 @@
-# Claude Code Multi-Session Coordination
+# Coordinating Independent Claude Code Sessions
 
-The root Claude Code session is responsible for coordinating independent Claude Code sessions when several sessions are working on related areas of the same project.
+Subagents are dispatched from one session and report back to it. **Independent sessions are different**: each has its own conversation history, its own branch or worktree, its own assumptions, and its own sense of what it owns. Nobody dispatched them, and nobody is holding the whole picture.
 
-This workflow is different from ordinary subagent delegation:
+This document is for the session that has to hold the whole picture.
 
-- **Subagent orchestration**: one root session delegates bounded work to Claude Code subagents and verifies their output.
-- **Multi-session coordination**: multiple independent Claude Code sessions already have separate conversation history, branches, worktrees, assumptions, and implementation ownership.
+## Subagent delegation vs. session coordination
 
-The coordinating session remains accountable for architecture, ownership decisions, integration sequencing, validation, and the final user-facing report.
+| | Subagent delegation | Session coordination |
+| --- | --- | --- |
+| Relationship | One root dispatches and verifies | Peers with independent histories |
+| Control | You wrote the assignment | You did not |
+| Evidence | You set the acceptance condition | You reconstruct what happened |
+| Failure mode | A bad result you can reject | Two correct implementations that are incompatible |
 
-## When to Use This Reference
+The dangerous failure is the second one. Two sessions each do good work against different assumptions about a shared contract, both pass their own tests, and the combination is broken. Git will merge it cleanly.
 
-Use multi-session coordination when:
+## When to use this
 
-- multiple Claude Code sessions are active for the same project or repository
-- several features are being implemented concurrently
-- active branches or worktrees may overlap
-- one feature may invalidate another feature's assumptions
-- shared APIs, schemas, types, components, dependencies, or user flows are changing
-- the user asks to coordinate, reconcile, integrate, or review parallel Claude Code work
+Use it when:
 
-Do not use it when:
+- Multiple Claude Code sessions are active on the same project or repository.
+- Several features are being implemented concurrently.
+- Active branches or worktrees may overlap.
+- One feature may invalidate another's assumptions.
+- Shared APIs, schemas, types, components, dependencies, or user flows are changing.
+- The user asks you to coordinate, reconcile, integrate, or review parallel work.
 
-- only one implementation session is active
-- the work is unrelated across repositories
-- a normal bounded subagent assignment is sufficient
-- the user only wants a code review of one completed change
-- available evidence is too incomplete to compare the work meaningfully
+Do not use it when only one implementation session is active, the work spans unrelated repositories, a normal bounded subagent assignment would do, the user wants a review of one finished change, or the available evidence is too thin to compare anything meaningfully.
 
-## Core Principles
+## Principles
 
-1. **Repository state takes precedence over session recency.**
-2. **Recent activity identifies candidates; it does not prove relevance.**
-3. **A directly reviewed session transcript is stronger evidence than an inferred work item.**
+1. **Repository state outranks session recency.** What is committed, branched, and open beats what somebody was doing recently.
+2. **Recent activity finds candidates; it does not prove relevance.**
+3. **A reviewed transcript beats an inferred work item.** Say which you have.
 4. **Avoid write-heavy parallel work in the same files or tightly coupled areas.**
-5. **Assign one clear owner for each shared contract or contested area.**
-6. **Resolve conflicts using primary evidence, not confident summaries.**
-7. **Do not claim a session was reviewed when only its branch, pull request, or diff was inspected.**
-8. **The final goal is behavioral compatibility, not merely a clean Git merge.**
-9. **A worktree is not disposable until its exact owner and task-local lifecycle are verified.**
+5. **Every shared contract gets exactly one owner.**
+6. **Resolve conflicts with primary evidence, not with the more confident summary.**
+7. **Never claim you reviewed a session when you only looked at its branch or diff.**
+8. **The goal is behavioral compatibility, not a clean merge.**
+9. **A worktree is not disposable until its owner and lifecycle are verified.**
 
-## Claude Code Session Naming
+## Talking to other sessions directly
 
-Name new project sessions using:
+Where cross-session messaging is enabled, this is far better evidence than inference from artifacts:
+
+- **`ListAgents`** enumerates the sessions and agents you can reach — local sessions on this machine, teammates, and cloud sessions, each labeled by kind.
+- **`SendMessage`** sends to one by name, so you can ask a session what it owns and what it assumed instead of reconstructing it from its commits.
+
+Prefer asking over inferring when the channel exists. Two caveats: the `crossSessionInbound` setting can restrict delivery, and some session kinds receive a message without being able to reply — check what a row actually supports rather than assuming a round trip.
+
+When messaging is unavailable, fall back to the artifact-based discovery below and label the evidence accordingly.
+
+## Session naming
+
+Name new project sessions:
 
 ```text
 Project - Three-to-Four-Word Description
@@ -58,265 +69,193 @@ United Tradesmen - Coordinate Scheduler Changes
 
 Rules:
 
-- detect the project name from the current project directory or repository
-- derive a concise three-to-four-word description from the session's primary objective
-- use clear title-style wording that distinguishes the session from other active work
-- do not include literal square brackets in the name
-- do not ask the user to provide a name when the project and objective are already clear
-- do not rename existing sessions automatically unless the user requests cleanup
+- Detect the project name from the current directory or repository.
+- Derive the description from the session's primary objective.
+- Use wording that distinguishes this session from the other active work.
+- No literal square brackets.
+- Do not ask the user for a name when the project and objective are already clear.
+- Do not rename existing sessions unless the user asks for cleanup.
 
-Use Claude Code's native session naming controls:
+Claude Code's native controls:
 
-```text
-claude -n "Project - Three-to-Four-Word Description"
-/rename Project - Three-to-Four-Word Description
+```bash
+claude -n "Project - Three-to-Four-Word Description"   # at launch
+/rename Project - Three-to-Four-Word Description        # mid-session
 ```
 
-When an environment exposes a session-title control, use the same format there. If the coordinating agent cannot rename the current session directly, return the exact recommended name and `/rename` command instead of claiming the rename occurred.
+`--name` also sets the terminal title and makes the session resumable by name with `claude --resume "<name>"`. If another live session on the machine already uses the name, Claude Code applies a variant.
 
-## Active Session Discovery
+If you cannot rename the current session yourself, return the exact recommended name and the `/rename` command rather than claiming the rename happened.
 
-Begin with the current project directory and repository.
+## Discovery
 
-Use this discovery order when the environment supports it:
+Work outward from what you can verify:
 
 ```text
 Current project directory
     ↓
 Current repository and worktree
     ↓
-Sessions active within the previous 72 hours
+Reachable sessions via ListAgents, where cross-session messaging is enabled
     ↓
-Sessions from other worktrees of the same repository
+Sessions active in the previous 72 hours
+    ↓
+Sessions in other worktrees of the same repository
     ↓
 Active branches, pull requests, and unmerged commits
     ↓
 Older sessions referenced by active work
     ↓
-Manual session names or identifiers only when necessary
+Specific session names or identifiers, only when you must ask
 ```
 
-The previous 72 hours is the standard initial discovery window. Do not ask the user to configure it during normal use.
+72 hours is the default initial window. Do not make the user configure it.
 
-Claude Code session evidence may be available through:
+Session evidence may come from the current conversation, session metadata and transcripts under the Claude Code home project-history directory, the `/resume` picker or an equivalent desktop/web/IDE history, session names and last-activity times, branches and worktrees, pull requests and diffs, and optional active-work records under `.claude/coordination/active-work/`.
 
-- the current session and its conversation history
-- session metadata or transcripts under the resolved Claude Code home project-history directory
-- the `/resume` session picker or equivalent desktop, web, or IDE session history
-- session names, last-activity times, project paths, branches, and worktree associations
-- active branches, worktrees, pull requests, commits, and diffs
-- optional active-work records under `.claude/coordination/active-work/`
+Read only the metadata and transcript portions you need for coordination. Do not copy unrelated conversation content into a report.
 
-Read only the session metadata and transcript portions needed for coordination. Do not copy unrelated conversation content into the coordination report.
+**Include older work** when evidence shows it still has an active branch or worktree, unmerged commits, an open pull request, an incomplete implementation, an unresolved architectural decision, a shared contract in current use, or a dependency affecting current work.
 
-Include older work when repository or session evidence shows that it still has one or more of the following:
+**Exclude work** that is unrelated to this repository, fully merged and no longer decision-relevant, abandoned with no remaining contract impact, or exploratory and never adopted.
 
-- an active branch or worktree
-- unmerged commits
-- an open pull request
-- incomplete implementation
-- an unresolved architectural decision
-- a shared contract used by recent work
-- a dependency or blocker affecting current work
+Do not include a session merely because it was recently active.
 
-Do not include a session solely because it was recently active.
+## Classify every piece of evidence
 
-Exclude work that is clearly:
+State which of these applies to each work item, every time:
 
-- unrelated to the current repository or project
-- fully merged and no longer relevant to active decisions
-- abandoned with no remaining dependency or contract impact
-- purely exploratory and never adopted
+- **Directly reviewed session** — you inspected the session or its transcript.
+- **Direct session report** — you asked the session via `SendMessage` and it answered.
+- **Session-metadata inference** — you identified it from name, activity, project, branch, or worktree metadata, without reviewing enough content to verify its plan.
+- **Repository-inferred work** — you identified it from branches, worktrees, commits, diffs, pull requests, tests, or project files.
+- **User-supplied** — the user told you.
+- **Potentially missing** — evidence suggests related work you cannot reach.
 
-## Evidence Classification
+Coordination advice built on unlabeled inference is how two sessions get told they are compatible when nobody checked.
 
-Classify each work item as one of these:
+## The shared change map
 
-- **Directly reviewed session** — the coordinator inspected the relevant Claude Code session or transcript.
-- **Session-metadata inference** — the coordinator identified the session through its name, activity, project, branch, worktree, or transcript metadata but did not review enough content to verify its implementation plan.
-- **Repository-inferred work** — the coordinator identified the work through branches, worktrees, commits, diffs, pull requests, tests, or project files.
-- **User-supplied session** — the user explicitly identified the session or supplied its contents.
-- **Potentially missing work** — evidence suggests additional related work, but the coordinator cannot access enough context to classify it safely.
+For each relevant work item, record:
 
-Always state which classification applies.
-
-## Shared Change Map
-
-For every relevant work item, record:
-
-- session name and identifier when available
+- session name and identifier, when available
 - evidence classification
-- stated feature or objective
+- stated objective
 - last known activity
 - project directory and repository
 - branch or worktree
-- worktree class and task-local permit when applicable
+- worktree class and task-local permit, where applicable
 - current status
 - files and modules affected
 - APIs, events, routes, or shared interfaces affected
 - schemas, migrations, or persistence affected
-- software or service dependencies added or changed
-- accepted upstream work artifacts or decisions required before the item can begin or integrate
+- dependencies added or changed
+- upstream artifacts or decisions required before it can start or integrate
 - tests added, changed, or invalidated
-- handoff and integration verification gates
+- integration verification gates
 - assumptions
-- unmet upstream dependencies and other blockers
+- unmet dependencies and other blockers
 - open decisions
 - merge or integration status
 
-The map must distinguish confirmed facts from inference.
+Keep confirmed facts visibly separate from inference.
 
-When a task proposes or owns an auxiliary worktree, consult `references/worktrees.md`. Keep its worktree permit separate from subagent and graph-node permits. A coordinating root may clean only auxiliaries its own task created or explicitly adopted; host-managed, user-managed, and other-session worktrees remain preserved unless ownership is transferred through primary evidence.
+When a task proposes or owns an auxiliary worktree, consult `worktrees.md`. A coordinating session may clean only auxiliaries its own task created or explicitly adopted. Host-managed, user-managed, and other-session worktrees stay preserved unless ownership transfers on primary evidence.
 
-## Conflict Categories
+## Conflict categories
 
-Check for more than overlapping file edits.
+Overlapping file edits are the easiest kind to find and the least dangerous. Check all seven.
 
-### File and ownership conflicts
+**File and ownership** — two sessions editing one file; two sessions owning a module; a broad refactor reaching into another session's area.
 
-- multiple sessions editing the same file
-- multiple sessions owning the same module or service
-- broad refactors touching another session's implementation area
+**Architecture** — competing abstractions for one responsibility; incompatible state-management approaches; independent redesigns of a shared subsystem; changes that bypass an established boundary.
 
-### Architecture conflicts
+**Contract** — incompatible request or response shapes; conflicting shared types; event names or payloads that disagree; one session building against an outdated contract.
 
-- competing abstractions for the same responsibility
-- incompatible state-management approaches
-- independent redesigns of a shared subsystem
-- changes that bypass established architectural boundaries
+**Data** — incompatible migrations; conflicting schema assumptions; duplicate persistence models; a destructive change another feature does not expect.
 
-### Contract conflicts
+**Dependency** — incompatible package versions; two libraries for one job; changed build, runtime, or environment requirements.
 
-- incompatible API request or response shapes
-- conflicting shared types or interface definitions
-- event names or payloads that disagree
-- one session consuming an outdated contract
+**Behavioral** — one feature changes a flow another relies on; authentication or authorization behavior disagrees; error handling, validation, or lifecycle assumptions conflict; two features work alone and fail together.
 
-### Data conflicts
+**Validation** — tests encoding incompatible assumptions; one session invalidating another's fixtures or snapshots; no test covering the combined workflow; separate suites green while the integrated system is broken.
 
-- incompatible database migrations
-- conflicting schema assumptions
-- duplicate persistence models
-- destructive changes another feature does not expect
+## Ownership and sequencing
 
-### Dependency conflicts
-
-- incompatible package versions
-- duplicate libraries for the same responsibility
-- changes to build, runtime, or environment requirements
-
-### Behavioral conflicts
-
-- one feature changes a user flow another feature relies on
-- authentication or authorization behavior disagrees
-- error handling, validation, or lifecycle assumptions conflict
-- separate implementations work alone but fail when combined
-
-### Validation conflicts
-
-- tests encode incompatible assumptions
-- one session invalidates another session's fixtures or snapshots
-- validation omits the combined workflow
-- separate test suites pass while the integrated system fails
-
-## Ownership and Sequencing
-
-When work overlaps, the coordinator must establish:
+Decide and state explicitly:
 
 - one owner for each shared file, contract, schema, or tightly coupled area
 - which sessions may proceed independently
-- which session must complete first
-- which session must pause, rebase, or move to a separate worktree
-- which shared interface must be agreed upon before implementation continues
-- which implementation must adapt to an established contract
-- required integration checkpoints
-- required validation before the next dependent change begins
-- the remaining chain of blocking work that controls integration completion
+- which must finish first
+- which must pause, rebase, or move to a separate worktree
+- which shared interface must be agreed before implementation continues
+- which implementation adapts to an already-established contract
+- the integration checkpoints
+- the validation required before the next dependent change starts
+- the remaining chain of blocking work that controls when integration can finish
 
-Do not tell sessions only to “coordinate.” State the exact ownership, dependency, contract, or sequencing decision.
+Never tell sessions merely to "coordinate." Name the ownership, dependency, contract, or sequencing decision.
 
-## Conflict Resolution
+## Resolving conflicts
 
-Resolve conflicts in this order:
+In order:
 
 1. Current `CLAUDE.md` instructions and authoritative project documentation
 2. Current code, tests, schemas, configuration, and runtime behavior
 3. Explicit user decisions
-4. Established shared contracts already used by the project
+4. Established shared contracts already in use
 5. The smallest safe change that preserves compatibility
 
-When two approaches are both plausible and the choice materially affects architecture, behavior, data, safety, release timing, or user-visible output, ask the user for the decision.
+Ask the user when both approaches are plausible and the choice materially affects architecture, behavior, data, safety, release timing, or user-visible output.
 
-Do not ask the user when:
+Do not ask when the repository already answers it, one option is clearly incompatible with current code or tests, it is a minor implementation detail, or a safe default is documented.
 
-- the repository already establishes the answer
-- one option is clearly incompatible with current code or tests
-- the issue is a minor implementation detail
-- a safe default is documented
+## Instructions for each session
 
-## Instructions for Active Sessions
+Give each active session copy-ready guidance covering what may continue, what must pause, what it owns, what it must not modify, which contracts it must follow, what it must wait for, the changes needed for compatibility, the validation it must run, the evidence it must return, and the condition for calling its work integration-ready.
 
-For each active session, provide copy-ready instructions covering:
+Include the resume target when useful:
 
-- what may continue
-- what must pause
-- files or systems it owns
-- files or systems it must not modify
-- contracts it must follow
-- dependencies it must wait for
-- changes needed for compatibility
-- validation it must run
-- evidence it must return
-- the condition for declaring the work integration-ready
-
-When useful, include the session's exact Claude Code resume target:
-
-```text
+```bash
 claude --resume "Session Name"
 ```
 
-## Required Coordinator Output
-
-Return:
+## What to return
 
 1. **Executive summary** — overall compatibility and immediate concern level.
-2. **Discovery coverage** — what was directly reviewed, inferred from session metadata, inferred from repository evidence, user-supplied, or potentially missing.
-3. **Active work summary** — objective, status, branch or worktree, and affected systems for each item.
-4. **Shared change map** — ownership, dependencies, contracts, and validation impact.
-5. **Conflict and overlap matrix** — file, architecture, contract, data, dependency, behavior, and test overlap.
-6. **Ranked risks** — Critical, High, Medium, or Low, with evidence and resolution.
-7. **Implementation order** — safest completion and integration sequence.
-8. **Instructions for each session** — precise copy-ready guidance.
+2. **Discovery coverage** — what was directly reviewed, reported by a session, inferred from metadata, inferred from the repository, user-supplied, or potentially missing.
+3. **Active work summary** — objective, status, branch or worktree, and affected systems per item.
+4. **Shared change map** — ownership, dependencies, contracts, validation impact.
+5. **Conflict and overlap matrix** — all seven categories.
+6. **Ranked risks** — Critical / High / Medium / Low, each with evidence and a resolution.
+7. **Implementation order** — the safest completion and integration sequence.
+8. **Instructions for each session** — precise and copy-ready.
 9. **Integration verification checklist** — targeted and combined validation.
-10. **Open decisions** — only decisions that genuinely require human approval.
+10. **Open decisions** — only the ones that genuinely need a human.
 
-## Optional Repository Coordination Records
+## Optional repository coordination records
 
-A repository may maintain optional active-work records under:
+A repository may keep advisory records under:
 
 ```text
 .claude/coordination/active-work/
 ```
 
-Use `references/templates/active-work-record.md` as the starting point.
+Start from `templates/active-work-record.md`. In that record, `dependencies` names required upstream artifacts or decisions, `blocked_by` lists the unsatisfied ones, `owned_paths` records write ownership, and `validation_required` defines the gates for integration-ready status. Do not add synonymous fields without a concrete consumer.
 
-In that record, `dependencies` names required upstream work artifacts or decisions, `blocked_by` lists dependencies that are not yet satisfied, `owned_paths` records write ownership, and `validation_required` defines the gates that must pass before integration-ready status. Do not introduce synonymous fields unless a concrete consumer requires them.
+These records are aids, not truth. Verify them against current session evidence, Git state, code, tests, and pull requests before relying on them. Do not require every repository to adopt the directory.
 
-These records are advisory coordination aids. Verify them against current session evidence, Git state, code, tests, and pull requests before relying on them.
+Task-created auxiliary worktrees are reconciled inside the owning task — integrated and removed when the gates pass, or preserved with exact path, owner, branch or HEAD, blocker, and next action. A broader stale-worktree sweep is a different workflow, and it never supplies missing ownership evidence.
 
-Task-created auxiliary worktrees must be integrated and removed inside the owning task when all cleanup gates pass, or preserved with exact path, owner, branch or HEAD, blocker, and next action. Do not assign this responsibility to a scheduled cleaner. A broader stale-worktree sweep is a separate workflow and never supplies missing ownership evidence.
+## Capability limits
 
-Do not require every repository to adopt this directory.
+Session discovery differs across the CLI, desktop, web, and IDE integrations. Local, remote, and other-client sessions may not share one reachable history, and cross-session messaging may be restricted or disabled.
 
-## Capability Limits
+When discovery is incomplete:
 
-Session discovery differs across Claude Code CLI, Desktop, web, and IDE integrations. Local sessions, remote sessions, and sessions created in another client may not share one accessible history.
+1. Inspect whatever is accessible — metadata, branches, worktrees, commits, diffs, pull requests, active-work records.
+2. Report what was inferred rather than reviewed.
+3. Name the missing context that could change an integration decision.
+4. Ask only for the specific session name, identifier, or summary that would close the gap.
 
-When complete session discovery is unavailable:
-
-1. inspect accessible session metadata, branches, worktrees, commits, diffs, pull requests, and active-work records
-2. report which work was inferred rather than directly reviewed
-3. identify any missing context that could change an integration decision
-4. request only the specific session name, identifier, or summary needed to close that gap
-
-Never imply complete coordination coverage when relevant Claude Code sessions may be inaccessible.
+Never imply complete coverage when relevant sessions may be inaccessible.

@@ -48,10 +48,18 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLAUDE_HOME="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 TIMESTAMP="$(date +%Y%m%d%H%M%S)"
 MANIFEST_PATH="$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv"
+BACKUP_ROOT="$CLAUDE_HOME/.coding-agent-playbook-backups/$TIMESTAMP"
 LEGACY_MANIFEST_PATH="$CLAUDE_HOME/.claude-code-agent-playbook-managed-files.tsv"
+
+VALIDATION_FAILURES=0
 
 say() {
   printf '%s\n' "$*"
+}
+
+fail() {
+  VALIDATION_FAILURES=$((VALIDATION_FAILURES + 1))
+  printf '%s\n' "$*" >&2
 }
 
 run() {
@@ -78,13 +86,24 @@ sha256_file() {
   fi
 }
 
+# Backups are written under $CLAUDE_HOME/.coding-agent-playbook-backups/<timestamp>/
+# rather than beside the original. Writing `*.bak.<timestamp>` files into
+# references/, agents/, and skills/ left the managed trees cluttered after every
+# update and put unmanaged files inside directories Claude Code scans.
 backup_file() {
   local path="$1"
-  if [[ -f "$path" ]]; then
-    local backup="$path.bak.$TIMESTAMP"
-    say "Backing up $path -> $backup"
-    run cp -p "$path" "$backup"
-  fi
+  [[ -f "$path" ]] || return 0
+
+  local relative backup
+  case "$path" in
+    "$CLAUDE_HOME"/*) relative="${path#"$CLAUDE_HOME"/}" ;;
+    *) relative="$(basename "$path")" ;;
+  esac
+  backup="$BACKUP_ROOT/$relative"
+
+  say "Backing up $path -> $backup"
+  run mkdir -p "$(dirname "$backup")"
+  run cp -p "$path" "$backup"
 }
 
 copy_file() {
@@ -265,7 +284,7 @@ retire_stale_managed_files() {
     actual_hash="$(sha256_file "$destination")"
     expected_hash="$(printf '%s' "$expected_hash" | tr '[:upper:]' '[:lower:]')"
     if [[ "$actual_hash" != "$expected_hash" ]]; then
-      say "Preserving customized formerly managed file: $destination" >&2
+      say "Preserving customized formerly managed file: $destination"
       continue
     fi
 
@@ -312,7 +331,7 @@ add_or_replace_playbook_section() {
     local current_start_count current_end_count current_start_line current_end_line current_line_ending
     local legacy_start_count legacy_end_count legacy_start_line legacy_end_line legacy_line_ending
     local current_pair_valid=0 legacy_pair_valid=0
-    local active_start_marker active_end_marker marker_line_ending newline section temp
+    local active_start_marker active_end_marker marker_line_ending newline section section_file temp
     read -r current_start_count current_end_count current_start_line current_end_line current_line_ending legacy_start_count legacy_end_count legacy_start_line legacy_end_line legacy_line_ending < <(
       awk -v start="$start_marker" -v end="$end_marker" -v legacy_start="$legacy_start_marker" -v legacy_end="$legacy_end_marker" '
         BEGIN {
@@ -392,8 +411,20 @@ add_or_replace_playbook_section() {
         body="${body//$'\n'/$'\r\n'}"
       fi
       section="$start_marker$newline# $title$newline$newline$body$newline$end_marker$newline"
+      # The section is passed through a file rather than `awk -v` because `-v`
+      # applies escape-sequence processing and would corrupt any backslash in
+      # the instruction body (for example `\n`, `\t`, or a Windows path).
+      section_file="$(mktemp "${target}.coding-agent-playbook-claude-code-section.XXXXXX")"
+      printf '%s' "$section" > "$section_file"
       temp="$(mktemp "${target}.coding-agent-playbook-claude-code.XXXXXX")"
-      awk -v start="$active_start_marker" -v end="$active_end_marker" -v section="$section" -v newline="$newline" '
+      awk -v start="$active_start_marker" -v end="$active_end_marker" -v section_file="$section_file" -v newline="$newline" '
+        BEGIN {
+          section = ""
+          while ((getline section_line < section_file) > 0) {
+            section = section section_line "\n"
+          }
+          close(section_file)
+        }
         {
           line = $0
           sub(/\r$/, "", line)
@@ -402,6 +433,7 @@ add_or_replace_playbook_section() {
         line == end { in_section = 0; next }
         !in_section { printf "%s%s", line, newline }
       ' "$target" > "$temp"
+      rm -f "$section_file"
 
       if cmp -s "$temp" "$target"; then
         rm -f "$temp"
@@ -489,13 +521,13 @@ else
 
 Supporting global reference documents live under the Claude Code home references directory:
 
-- `references/README.md` — map of available global reference docs
-- `references/model-routing.md` — mandatory Claude model, effort, permission, tool, depth, escalation, and acceptance rules
-- `references/subagents.md` — Claude Code subagent delegation rules, assignment template, and acceptance checklist
-- `references/worktrees.md` — root-owned task-local worktree budgeting, Claude Code isolation, integration, cleanup, and preservation rules
-- `references/multi-session-coordination.md` — Claude Code session discovery, naming, ownership, sequencing, conflict detection, and integration guidance
-- `references/reference-doc-routing.md` — how to decide which docs to consult and how to treat them
-- `references/templates/` — templates for repository-level CLAUDE.md, architecture, testing, access control, design system, release, API, data model, active work, task graphs, and worktree manifests
+- `references/README.md` — map of the available global reference docs
+- `references/model-routing.md` — how Claude Code resolves a subagent'\''s model, what overrides what, effort semantics, permission modes, tool boundaries, and nesting depth
+- `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
+- `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
+- `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
+- `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
+- `references/templates/` — templates for repository CLAUDE.md, architecture, testing, access control, design system, release, API contracts, data model, active work, task graphs, and worktree manifests
 
 Reusable Claude Code skills live under the Claude Code home skills directory:
 
@@ -515,17 +547,19 @@ Custom Claude Code subagents live under the Claude Code home agents directory:
 - `agents/test-triager.md`
 - `agents/isolated-worker.md`
 
-Reference documents are supporting context, not automatic truth. For repository tasks when subagents are available, the root Claude Code session delegates actual execution to at least one bounded subagent and remains accountable for root orchestration, integration, validation, acceptance, and the final response. Direct root execution is limited to unavailable subagents, an explicit user prohibition, or a specific authority-bound action; record the exact exception.
+Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
 
-The root owns a finite manifest, total subagent budget, and child-specific permits. The actual user-selected main-session model is the root ceiling: Opus rank 3, Sonnet rank 2, Haiku rank 1. Every managed route is explicit and root-permitted, and every `Agent` invocation passes a model with child rank at or below parent rank; automatic or omitted-model routes are rejected. Bundled definitions fail closed at Haiku, and their fixed effort must fit the parent ceiling. Equal-tier routing is valid and depth does not force a drop. Descendants cannot request upgrades. Only the root may route a new depth-1 replacement within the actual root ceiling, even when stronger than the failed child. Unknown, unavailable, or substituted models are not accepted silently.
+Pass an explicit `model` on every `Agent` dispatch; never leave it to default. Keep each child at or below the main session'\''s tier (`opus` > `sonnet` > `haiku`) and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating does not require stepping down. Bundled definitions pin `model: haiku` so an omitted-model dispatch fails closed. Note that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`, and organization allowlists can substitute; verify rather than assume when attribution matters. `effort` comes from the agent definition and overrides session effort — it is a property of the role, not a ceiling inherited from the caller.
 
-Depth 1 contains named direct workers or `local-orchestrator`. A permitted local orchestrator may use only root-permitted depth-2 leaves, and only after nesting support and an active `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` setting are verified. Depth-2 leaves omit `Agent` and cannot spawn; depth 3 is prohibited. Every child stays at or below its parent in model, effort, permission mode, tools, scope, workspace, and authority. If either gate is unavailable, depth 1 executes directly without `Agent`; the setting is not changed without authorization.
+Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in model, permissions, tools, scope, workspace, and authority.
 
-The auxiliary-worktree budget starts at zero and is separate from the subagent budget. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. Before the final response, the root removes each task-created auxiliary under verified gates or preserves it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation. The active host-managed worktree remains under the host lifecycle.
+Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
 
-The root Claude Code session must verify implementation-relevant claims against primary evidence such as current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
+The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent'\''s worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
 
-When delegating to subagents or coordinating independent Claude Code sessions, pass only relevant reference document names, paths, or sections. Do not dump large documents or full session transcripts into prompts unless necessary.
+Verify implementation-relevant claims against primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
+
+When delegating to subagents or coordinating independent sessions, pass only the relevant document names, paths, or sections. Do not dump large documents or full session transcripts into prompts.
 
 The root session remains accountable for the final plan, final diff, validation, and final response.'
   add_or_replace_playbook_section "$TARGET_CLAUDE_MD" "Global Reference Documents and Subagent Support" "$POINTER_BODY"
@@ -568,7 +602,7 @@ for path in \
   if [[ -e "$path" || "$DRY_RUN" == "1" ]]; then
     say "OK: $path"
   else
-    say "Missing: $path" >&2
+    fail "Missing: $path"
   fi
 done
 
@@ -577,9 +611,12 @@ for skill in "$CLAUDE_HOME/skills"/*/SKILL.md; do
   if grep -q '^name:' "$skill" && grep -q '^description:' "$skill"; then
     say "OK frontmatter: $skill"
   else
-    say "Check frontmatter: $skill" >&2
+    fail "Check frontmatter: $skill"
   fi
 done
+
+# Roles that must stay read-only: plan permission mode, and no Edit or Write.
+READ_ONLY_AGENTS=" read-only-explorer docs-researcher senior-reviewer "
 
 for agent_name in \
   local-orchestrator \
@@ -598,30 +635,57 @@ for agent_name in \
     && grep -q '^tools:' "$agent"; then
     say "OK Claude Code frontmatter: $agent"
   else
-    say "Check Claude Code frontmatter: $agent" >&2
+    fail "Check Claude Code frontmatter: $agent"
+  fi
+
+  if [[ "$READ_ONLY_AGENTS" == *" $agent_name "* ]]; then
+    if grep -Eq '^permissionMode:[[:space:]]*plan[[:space:]]*$' "$agent"; then
+      say "OK read-only permission mode: $agent"
+    else
+      fail "Read-only role must use permissionMode: plan: $agent"
+    fi
+
+    if grep -Eq '^tools:.*(^|[ ,])(Edit|Write)([, ]|$)' "$agent"; then
+      fail "Read-only role must not list Edit or Write: $agent"
+    else
+      say "OK read-only tool boundary: $agent"
+    fi
+  elif grep -Eq '^permissionMode:[[:space:]]*(acceptEdits|auto|dontAsk|bypassPermissions)[[:space:]]*$' "$agent"; then
+    fail "Write-capable role must use permissionMode: default unless a maintainer approved otherwise: $agent"
   fi
 
   if grep -Eq "^name:[[:space:]]*$agent_name[[:space:]]*$" "$agent" \
     && grep -Eq '^model:[[:space:]]*haiku[[:space:]]*$' "$agent"; then
     say "OK Claude Code agent name and model: $agent"
   else
-    say "Check Claude Code agent name or fail-closed Haiku model: $agent" >&2
+    fail "Check Claude Code agent name or fail-closed Haiku model: $agent"
   fi
 
   if [[ "$agent_name" == "local-orchestrator" ]]; then
     if grep -Eq '^tools:.*[ ,]Agent([, ]|$)' "$agent"; then
       say "OK depth-1 Agent tool: $agent"
     else
-      say "local-orchestrator.md must list Agent: $agent" >&2
+      fail "local-orchestrator.md must list Agent: $agent"
     fi
   elif grep -Eq '^tools:.*[ ,]Agent([, ]|$)' "$agent"; then
-    say "Execution worker or leaf must not list Agent: $agent" >&2
+    fail "Execution worker or leaf must not list Agent: $agent"
   fi
 
   if grep -Eq '^isolation:[[:space:]]*worktree[[:space:]]*$' "$agent"; then
-    say "Bundled agents must not enable worktree isolation globally: $agent" >&2
+    fail "Bundled agents must not enable worktree isolation globally: $agent"
   fi
 done
+
+say ""
+if [[ -d "$BACKUP_ROOT" ]]; then
+  say "Backups for this run: $BACKUP_ROOT"
+fi
+
+if (( VALIDATION_FAILURES > 0 )); then
+  say ""
+  fail "Install finished with $VALIDATION_FAILURES validation failure(s). Review the messages above."
+  exit 1
+fi
 
 say ""
 say "Install complete. Restart Claude Code or start a new session if needed so new instructions, skills, and subagents are loaded."

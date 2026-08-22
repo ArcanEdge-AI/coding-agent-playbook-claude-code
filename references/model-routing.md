@@ -1,166 +1,188 @@
-# Claude Code Subagent Model, Effort, Permission, and Tool Routing
+# Routing Subagents: Model, Effort, Permissions, Tools, and Depth
 
-The parent of every delegated node must explicitly select a named Claude Code agent and invocation model, then verify that the definition-level effort, permission mode, and tool boundary suit the assigned task and inherited ceilings. The actual model selected for the main Claude Code session is the root model ceiling; never assume that the root is running Opus.
+This is the reference for choosing *how* to run a subagent. The companion document `subagents.md` covers *when* and *what* to delegate.
 
-This is an execution rule, not a suggestion.
+The short version:
 
-## Why Explicit Routing Is Required
+> Pick the role that matches the work. Pass an explicit `model`. Keep the child's permissions and tools no broader than your own. Verify the result before you use it.
 
-Claude Code uses `inherit` when a subagent definition omits `model` and inherits session effort when it omits `effort`. A per-invocation `model` takes precedence over an agent definition's frontmatter, but `CLAUDE_CODE_SUBAGENT_MODEL` takes precedence over both. Organization model allowlists may substitute another model. Claude Code documents effort as agent frontmatter, not as an `Agent` invocation argument; the effective effort still must be verified rather than inferred. Permission behavior may also vary with the parent session unless the role declares a baseline.
+Everything below is detail on those four sentences.
 
-The bundled agents therefore pin fail-closed Haiku defaults, fixed role effort levels, `permissionMode`, and `tools` allowlists. Every managed dispatch must be an explicit root-permitted `Agent` route that passes a model at or below the parent ceiling. Do not use automatic delegation for this bounded contract: an automatic route or omitted invocation model is unauthorized and its result is not accepted. The Haiku frontmatter default prevents an omitted-model route from exceeding a Haiku root, but it is not a substitute for the explicit route and permit. Do not remove these fields without an explicit maintainer decision. Treat any runtime substitution warning or unresolved effective model as a failed routing gate, not as an acceptable fallback.
+---
 
-## Bundled Agents
+## How Claude Code actually resolves a subagent's model
 
-| Agent | Fail-closed default | Normal explicit model | Fixed effort | Permission mode | Tools and depth role | Intended work |
-| --- | --- | --- | --- | --- | --- | --- |
-| `read-only-explorer` | `haiku` | `haiku` | `low` | `plan` | Read-only, no `Agent`; depth-1 worker or depth-2 leaf | Focused repository exploration, call-site mapping, and pattern discovery. |
-| `docs-researcher` | `haiku` | `haiku` | `low` | `plan` | Read/web, no `Agent`; depth-1 worker or depth-2 leaf | Focused repository and authoritative documentation lookup. |
-| `test-triager` | `haiku` | `sonnet` | `medium` | `default` | Bounded test tools, no `Agent`; depth-1 worker or depth-2 leaf | Test diagnosis, log analysis, and explicitly authorized diagnostic edits. |
-| `isolated-worker` | `haiku` | `sonnet` | `medium` | `default` | Bounded write tools, no `Agent`; depth-1 worker or depth-2 leaf | Small, isolated, well-specified implementation. Its name does not imply a worktree. |
-| `senior-reviewer` | `haiku` | `sonnet` | `high` | `plan` | Read and validation tools, no `Agent`; depth-1 worker or depth-2 leaf | Evidence-backed review with escalation for high-impact judgment. |
-| `local-orchestrator` | `haiku` | `sonnet` | `high` | `default` | Includes `Agent`; depth 1 only | One bounded root-assigned subset that genuinely benefits from root-permitted depth-2 leaves. |
+This matters because several mechanisms compete, and the losing ones are silent.
 
-These are supporting agents. The root Claude Code session retains architecture ownership and final judgment. There is one definition per role rather than model-specific copies because Claude Code supports a per-invocation `model` override. The caller routes the same role at `haiku`, `sonnet`, or, exceptionally under an Opus ceiling, `opus`.
+Precedence, strongest first:
 
-## Finite Routing Contract
+| Level | Source | Notes |
+| --- | --- | --- |
+| 1 | `CLAUDE_CODE_SUBAGENT_MODEL` environment variable | Overrides **everything**, including a per-invocation `model`. If set, every subagent runs on that model regardless of what you pass. |
+| 2 | Per-invocation `model` on the `Agent` call | What this playbook uses. Set it on every dispatch. |
+| 3 | The agent definition's `model` frontmatter | The fallback when no model is passed. |
+| 4 | `inherit` / omitted | Runs on the main conversation's model. |
 
-Before spawning:
+Two consequences worth internalizing:
 
-1. At depth 0, record a finite task manifest and total subagent budget that count every depth-1 and depth-2 node.
-2. Record the root session's actual selected model family and rank. If it cannot be resolved to an approved family, do not delegate until the effective ceiling is known.
-3. Give every child a root-issued permit, parent and child IDs, non-empty strict completion subset, declared ownership or read scope, explicit per-invocation model, recorded definition-level effort, permission and tool boundary, exact workspace, and acceptance condition.
-4. Require sibling write ownership to be disjoint.
-5. Confirm the child is equal to or narrower than its parent in inputs, data access, scope, non-goals, authority, approval boundary, permission mode, and tools.
-6. Confirm both the child model tier and effort are at or below the parent's explicit ceilings. Equal-tier routing is valid; depth does not require a tier drop.
-7. Select the bundled agent whose job and effective capabilities most closely match the task.
-8. State why that route is sufficient, when it must stop, and how the parent will verify the result.
+- **Passing `model` explicitly is not a guarantee.** `CLAUDE_CODE_SUBAGENT_MODEL` silently outranks it, and organization model allowlists may substitute a different model. If you need certainty about what actually ran, check rather than assume.
+- **Every bundled definition pins `model: haiku`** so that an omitted-model dispatch fails *closed* — cheap and weak — instead of silently running everything on the main session's model. The frontmatter is a safety net, not the routing decision.
 
-Only the root may issue permits or expand the manifest or total budget. Limit an expansion reason to a newly discovered dependency, invalidated gate, or changed user scope. Obtain user approval immediately before a material-cost expansion.
-
-When runtime capacity is full, continue current ready work and do not create speculative descendants. A retry keeps its node ID and permit. A replacement requires a new root-issued permit and consumes budget.
-
-## Model and Effort Ceilings
-
-Use this approved model-family order:
+## Model tiers
 
 ```text
-opus   rank 3
-sonnet rank 2
-haiku  rank 1
+opus    strongest
+sonnet
+haiku    cheapest
 ```
 
-The child invariant is `child rank <= parent rank`. A full model ID may be mapped to its `opus`, `sonnet`, or `haiku` family only when that family is unambiguous. Claude Code may support other aliases, but this playbook does not rank them. Treat `inherit`, an unranked alias, an ambiguous full ID, or an unavailable model as unknown until the effective approved family is verified.
+Choose the cheapest tier that will reliably complete the subtask, and keep the child at or below the tier the main session is running. Delegating deeper never *requires* stepping down a tier — an equal-tier child is fine when the work needs it.
 
-The root session records the model the user actually selected, not the strongest model available to the account or client. Route depth 1 as follows:
+Record the model the user actually selected for the main session before you delegate. Do not assume it is Opus because the account has Opus; a Haiku session delegating Opus children is the failure this rule exists to prevent.
 
-- Opus root: normally use Sonnet for substantial delegated work and Haiku for cheap, objective work. Use an Opus child only for an exceptional bounded assignment with a recorded reason, finite permit, and explicit verification plan.
-- Sonnet root: use Sonnet or Haiku only.
-- Haiku root: use Haiku only.
+| Main session | Normal children | Notes |
+| --- | --- | --- |
+| Opus | Sonnet for substantial work, Haiku for cheap objective work | An Opus child should be exceptional and worth naming a reason for. |
+| Sonnet | Sonnet or Haiku | |
+| Haiku | Haiku | |
 
-The same invariant applies at depth 2 against the depth-1 parent's effective model. A Sonnet child may use Sonnet or Haiku leaves; a Haiku child may use only Haiku leaves. Opus at one depth does not force Sonnet at the next, and Sonnet does not force Haiku. Equal-tier parent and child routes are valid when the task needs them.
+`fable` and full model IDs exist and are valid values for `model`. This playbook does not rank them; if you use one, you own verifying it is within the main session's tier.
 
-Treat effort as a separate ordered ceiling:
+If a requested model is unavailable, blocked by an allowlist, or you cannot determine what actually ran: do not silently accept a substitute. Either re-dispatch at a model you can verify, keep the work in the calling session, or report the limitation.
+
+## Effort
+
+`effort` is set in the agent definition's frontmatter and takes values `low`, `medium`, `high`, `xhigh`, `max` (availability depends on the model). Claude Code does not expose an effort argument on the `Agent` call, so **the way you choose effort is by choosing the role definition.**
+
+Per the subagent frontmatter contract, a definition's `effort` *overrides* the session effort level. That is deliberate and it is why the roles are pinned:
+
+> **Effort is a property of the role, not a ceiling inherited from the caller.**
+
+A main session running at `low` effort can still dispatch `senior-reviewer` at `high`. That is the point of a review role — the review deserves more thought than the errand that triggered it. Do not refuse to delegate a role because its fixed effort is higher than the current session's effort setting; that reading makes the review and orchestration roles unreachable from ordinary sessions and is not how the field works.
+
+What you *should* do is pick the role whose effort matches the work:
+
+| Effort | Roles | Fits |
+| --- | --- | --- |
+| `low` | `read-only-explorer`, `docs-researcher` | Objective lookup with a checkable answer. |
+| `medium` | `isolated-worker`, `test-triager` | Bounded implementation, diagnosis with a search space. |
+| `high` | `senior-reviewer`, `local-orchestrator` | Judgment, risk assessment, coordination. |
+
+## Permission modes
+
+A permission mode is a capability contract, not a number on a scale.
+
+| Mode | Used by | Behavior |
+| --- | --- | --- |
+| `plan` | `read-only-explorer`, `docs-researcher`, `senior-reviewer` | Read-only. Edits are blocked. Shell commands outside the built-in read-only set are reviewed by the auto-mode classifier or prompt for approval. |
+| `default` | `test-triager`, `isolated-worker`, `local-orchestrator` | Normal approval flow. Edits are possible; prompts still apply. |
+
+The plan-mode detail has a practical consequence people get wrong: **a plan-mode subagent cannot reliably run a test suite, linter, type checker, or build.** Those commands sit outside the read-only set, so they are classifier-reviewed or they prompt — and a prompt inside a subagent can stall or be refused rather than quietly succeeding.
+
+So: `git diff`, `git log`, `git blame`, `git show`, and file reads are dependable in plan mode. `npm test`, `pytest`, `eslint`, `tsc`, and `make` are not. When a review needs a suite executed, route that to `test-triager`, which runs in `default` mode. This is exactly why `senior-reviewer` is told to identify the command that would settle a finding rather than run it.
+
+Do not use `acceptEdits`, `auto`, `dontAsk`, or `bypassPermissions` in a bundled definition without a maintainer-approved use case and a written risk note.
+
+Note that a subagent's permission mode does not always survive the parent session's own mode. If you cannot confirm the child ran under the mode you intended, report that rather than claiming the boundary held.
+
+## Tools
+
+`tools` is an allowlist. When present, the subagent gets exactly that list. `disallowedTools` subtracts from whatever the agent would otherwise have, and it wins.
+
+The rule that matters: **a child's tools must be a subset of the caller's.** A subagent that can do more than the thing that dispatched it is a boundary failure, whatever the prompt says.
+
+Two tools are handled specially in this playbook:
+
+- **`Agent`** — only `local-orchestrator` has it. Every leaf role omits it from `tools` *and* lists it in `disallowedTools`, which is the mechanism the Claude Code docs name for keeping a subagent from spawning. Belt and braces, because prompt text alone does not prevent a spawn.
+- **`EnterWorktree` / `ExitWorktree`** — no bundled role has these. Worktree lifecycle belongs to the root session. `local-orchestrator` lists them in `disallowedTools` because its broad tool ceiling would otherwise inherit them.
+
+## Nesting depth
+
+**Claude Code allows nested subagents by default — up to three layers below the main conversation.** At the depth limit, Claude Code withholds the `Agent` tool from subagents so the deepest layer does its own work and returns a summary.
+
+This playbook uses two layers, not three:
 
 ```text
-low < medium < high < xhigh < max
+layer 0   root session (main conversation)   — owns the task and the final answer
+layer 1   direct worker, or local-orchestrator
+layer 2   leaf subagents dispatched by local-orchestrator — must not spawn
 ```
 
-Effort is a fixed capability of the selected agent definition for this playbook; do not claim or attempt a per-invocation effort override. A child must be at or below the parent in both the model and effort orders, so select only a definition and model combination whose effort the current client reports as supported and within the parent ceiling. If support or the effective effort cannot be verified, do not dispatch: keep the work with the parent or report the limitation. A weaker model does not permit higher effort than the parent ceiling. Model depth and effort are independent: neither requires an automatic decrease merely because another delegated generation is used.
+Getting this right in your head matters, because the earlier version of this document had it backwards:
 
-Do not use `inherit` for routine delegated work. Pass the intended model explicitly on every `Agent` invocation and confirm that `CLAUDE_CODE_SUBAGENT_MODEL`, organization allowlists, provider behavior, or resume behavior did not change the effective route. A descendant must not silently change its model or effort, request or perform an upgrade, or fall back to the root route. If its ceiling is insufficient, it preserves completed work, stops, and reports the exact gap upward.
+- Nesting is **on** by default. There is no capability flag to verify before a `local-orchestrator` may dispatch, and nothing to wait for.
+- `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is a **tightening** of the default from 3 to 2, not an enablement. Setting `1` turns nesting off entirely.
+- Because the default is 3, the runtime by itself permits exactly the third layer this playbook forbids. The thing that actually enforces the cap is the leaf definitions carrying `disallowedTools: Agent`.
 
-Only the root may create a new depth-1 replacement. It may choose any approved model at or below the actual root ceiling, so the replacement may be stronger than the failed child without being stronger than the root. The root records a new permit, available budget, replacement reason, intended model, and verification plan. This is a new root route, not descendant escalation.
+Recommended settings entry for an operator who wants the cap enforced at runtime as well:
 
-If the requested child model is unknown, blocked, or unavailable, never silently substitute another family. Use the exact known parent family for the child only when Claude Code can explicitly enforce and verify that same-family route. Otherwise keep the work with the parent or report the runtime limitation. A substitution warning invalidates the route until the root confirms that the resulting model still satisfies the recorded ceiling and explicitly re-permits it; no descendant makes that decision.
+```json
+{
+  "env": {
+    "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2"
+  }
+}
+```
 
-## Permission and Tool Ceilings
+That is optional hardening. Do not change it from inside a task without authorization, and do not treat its absence as a reason to refuse to delegate.
 
-Permission modes are capability contracts, not a single numeric scale.
+Historical note, since it explains the old confusion: in Claude Code v2.1.217 through v2.1.218 the default was `1`, so a subagent could not spawn unless the limit was raised. v2.1.219 raised the default to `3`.
 
-- A child of a `plan` parent remains `plan` and read-only.
-- A child of a `default` parent may use `default` or the narrower `plan` mode, subject to its task.
-- Do not use `acceptEdits`, `auto`, `dontAsk`, or `bypassPermissions` in bundled agents without a maintainer-approved use case and documented risk analysis.
-- A child's effective `tools` set must be a subset of the parent's declared tool boundary.
-- Only `local-orchestrator` includes `Agent`. Direct workers and depth-2 leaves omit it and cannot spawn.
-- If a parent session mode overrides a subagent definition's permission behavior, report that limitation rather than claiming a stricter boundary was enforced.
+## Two runtime behaviors that change the shape of delegation
 
-## Depth Capability Gate
+**Agent teams.** In an interactive session with agent teams enabled, a subagent spawned from the main conversation *with a `name`* launches as a teammate rather than a plain subagent, and runs in the main session's working directory. An `isolation` value in the definition's frontmatter does not prevent this. If your ownership or isolation reasoning depends on a child being a conventional subagent, verify which one you actually got.
 
-The playbook permits root → depth 1 → depth 2 and prohibits depth 3.
+**Background subagents.** A subagent running in the background keeps only a fixed subset of built-in tools; others are stripped whether inherited or explicitly listed. The same definition can therefore resolve to different tools in the foreground and the background. Do not assume a background dispatch has the tools its `tools` line names.
 
-Before a depth-1 `local-orchestrator` may use `Agent`, the current Claude Code release must support nested subagents and `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` must already be active in an authorized settings scope and verified for the session. The root does not install or change that setting without authorization. If either capability gate is unavailable or unknown, do not permit nested execution: use depth-1 direct execution or have the local orchestrator execute its subset directly without `Agent`. The instruction contract remains required in addition to the runtime cap.
-
-If the client does not expose nested subagents, use depth-1 direct workers only. Do not emulate depth 2 with independent Claude Code sessions.
-
-## Worktree Isolation
+## Worktree isolation
 
 Shared execution is the default and the auxiliary-worktree budget starts at zero. No bundled agent sets `isolation: worktree`.
 
-Only the root may authorize `isolation: worktree` or another auxiliary checkout under a separate worktree permit. The permit must record the exact base ref and SHA because Claude Code worktree isolation may start from the repository default branch rather than the parent session's `HEAD`, depending on `worktree.baseRef` and client behavior. Descendants must not request isolation in an `Agent` call or create, adopt, repurpose, move, or remove a worktree.
+The reason is specific and worth stating plainly: **a subagent with `isolation: worktree` gets a worktree branched by default from your repository's default branch, not from the parent session's `HEAD`.** An isolated worker can therefore start without the changes the current session just made, and produce work against the wrong base. The `worktree.baseRef` setting controls this — `"head"` branches from the current `HEAD` instead.
 
-Consult `references/worktrees.md` for creation, integration, cleanup, and preservation gates.
+So isolation is a root decision, made with the base ref recorded and verified. `isolation` can also be passed on an `Agent` call directly, which is exactly why descendants are told never to do that. See `worktrees.md` for the full lifecycle.
 
-## Keep With the Root Session
+## What to record before dispatching
 
-Do not delegate final ownership of:
-
-- architecture and system design
-- security-sensitive or access-control decisions
-- authentication, authorization, privacy, payments, or billing
-- destructive operations
-- data migrations or persisted-schema strategy
-- concurrency, locking, queues, caching, or background-job design
-- public API compatibility
-- release or production-impacting configuration
-- large or high-impact refactors
-- final acceptance of meaningful changes
-
-A subagent may gather bounded evidence for these areas, but the root session makes and verifies the decision.
-
-## Required Assignment Fields
+Not a form to fill in — the set of things that should be true and stated somewhere:
 
 ```text
-Role and named Claude agent:
-Explicit per-invocation child model:
-Selected agent definition and fixed effort:
-Actual root model and rank:
-Parent effective model and effort ceiling:
-Child-at-or-below proof and explicit invocation model:
-Permission mode and exact tool boundary:
-Goal:
-Context:
-Lineage and inherited constraints:
-Parent ID / child ID:
-Completion subset:
-Root-issued node permit and total-budget status:
-Declared ownership or read scope and sibling non-overlap:
-Exact assigned workspace and worktree permit when applicable:
-Acceptance condition:
-Scope:
-Non-goals:
-Evidence required:
-Escalation conditions:
-Output format:
-Parent return bundle:
+Role and subagent_type:
+Explicit model (and the main session's model, for comparison):
+Role's fixed effort:
+Permission mode and tool boundary (and proof both are ⊆ yours):
+Goal, stated as a verifiable outcome:
+Context, scope, and non-goals:
+Read scope, or exact write ownership if the child edits:
+Workspace (and worktree permit, if an auxiliary is genuinely in play):
+Acceptance condition and required evidence:
+Stop conditions:
 ```
 
-## Acceptance Check
+## Before you accept the result
 
-Before accepting delegated work, confirm:
+- The stated acceptance condition is met, with evidence you can check rather than a confident summary.
+- Claimed file paths and symbols exist and say what the result claims they say.
+- The child stayed inside its scope; no unrelated files changed.
+- No unexplained model substitution occurred.
+- Any edits are minimal and traceable to the assignment.
+- Validation was actually run, or its absence is stated with a reason.
+- For anything security-, migration-, concurrency-, or contract-related, the judgment came back to you rather than being made by the child.
+- You have looked at the final diff yourself.
 
-- the route was an explicit root-permitted dispatch rather than automatic delegation
-- the named agent, explicit invocation model, definition-level effort, effective model and effort, permission mode, and tools are recorded
-- the actual root model and rank were resolved without assuming Opus
-- neither model nor effort exceeds the recorded parent ceiling
-- the per-invocation model was explicit, and no environment, allowlist, provider, or resume substitution invalidated it
-- no unsupported per-invocation effort override was assumed; the selected definition's fixed effort fits the ceiling and the effective effort was verified
-- the permission mode and tools are equal to or narrower than the parent boundary
-- the root permit, parent and child IDs, and total-budget status are recorded
-- the completion subset is non-empty and strictly smaller than the parent's remaining subset
-- sibling write ownership is disjoint
-- the subagent used its exact assigned workspace and did not create, repurpose, move, or remove a worktree
-- the stated acceptance condition passed
-- any replacement stayed within the actual root ceiling, consumed a new permit and budget, and documented why its route was needed
-- claims are supported by primary evidence
-- the root independently reviewed material findings and edits
+Never accept a subagent's conclusion because it sounds confident. Confidence is the cheapest thing a model produces.
+
+## What never gets delegated
+
+The decision stays with the root session, even when a subagent gathers the evidence:
+
+- architecture and system design
+- security, access control, authentication, authorization, privacy
+- payments and billing
+- destructive operations
+- data migrations and persisted-schema strategy
+- concurrency, locking, queues, caching, background jobs
+- public API compatibility
+- release and production-affecting configuration
+- large or high-impact refactors
+- final acceptance
