@@ -5,7 +5,7 @@
 <h1 align="center">Coding Agent Playbook — Claude Code Edition</h1>
 
 <p align="center">
-  <strong>Installable, managed global instructions, subagents, skills, and engineering workflows for Claude Code.</strong>
+  <strong>Installable, managed instruction rules, subagents, skills, commands, and engineering workflows for Claude Code.</strong>
 </p>
 
 <p align="center">
@@ -49,17 +49,17 @@ The easiest install path is to give this repository URL to your coding agent:
 ```text
 Install this globally: https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code
 
-Follow the repository's INSTALL.md exactly. Use full mode even when an older installation exists; do not infer support-only mode unless I explicitly request it. Preserve my existing instructions, back up anything you change, install the global instructions, references, skills, and custom subagents, then report the installed files and validation results.
+Follow the repository's INSTALL.md exactly. Use full mode even when an older installation exists; do not infer support-only mode unless I explicitly request it. Back up anything you change, install the instruction rules, references, skills, commands, and custom subagents, then report the installed files and validation results.
 ```
 
 That is the intended public experience: users should not need to understand the file layout before installation. The agent should read `INSTALL.md`, clone or fetch the repository, install into user-level Claude Code configuration locations under the resolved Claude Code home, validate the result, and report what changed.
 
-Support-only is an explicit pointer-only configuration, not an update mode. Use it only when the user confirms the global instructions already live in their global `CLAUDE.md` manually:
+Support-only is an explicit configuration, not an update mode. Use it only when the user confirms they manage their own behavior instructions:
 
 ```text
 Install this in support-only mode: https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code
 
-I already added the global custom instructions manually. Follow INSTALL.md, but do not duplicate the full instructions into CLAUDE.md. Install references, skills, and custom subagents only.
+I manage my own behavior instructions. Follow INSTALL.md, but skip the instruction rules. Install references, skills, commands, and custom subagents only.
 ```
 
 ---
@@ -164,8 +164,9 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 | --- | --- | --- |
 | Install guide | `INSTALL.md` | Agent-readable install contract for one-prompt installation. |
 | Install scripts | `install/` | Manual installers for Unix-like shells and PowerShell. |
-| Global instructions | `custom-instructions/` | Tool-agnostic behavior rules for elegant, maintainable code. Paste into your global `CLAUDE.md`. |
-| Prompts | `claude-prompts/` | Setup and active-project coordination prompts. |
+| Instruction rules | `rules/` | Tool-agnostic behavior rules, installed as discrete always-on files. |
+| Commands | `commands/` | Native slash commands, currently `/coordinate-work`. |
+| Plugin manifests | `.claude-plugin/` | Marketplace and plugin manifests for `claude plugin install`. |
 | Reference docs | `references/` | Claude model and capability routing; finite subagent delegation; task-local worktrees; multi-session coordination; and reusable templates. |
 | Skills | `skills/` | Reusable workflows for task-graph, subagent, and worktree orchestration, session coordination, document routing, and senior review. |
 | Custom agents | `agents/` | Claude Code definitions for a bounded local orchestrator, direct workers, and non-spawning execution leaves. |
@@ -177,15 +178,31 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 
 ### Full install
 
-Use this for normal installs and updates. Full mode is the default and safely replaces the playbook-owned marked section and current managed files.
+Use this for normal installs and updates. Full mode is the default.
 
-Full install writes the global instructions into the user's global `CLAUDE.md`, installs references, skills, and custom subagents, and records their paths and hashes in a managed-file manifest. Later updates can back up and retire unchanged files removed upstream while preserving customized or unrelated files.
+Full install copies five trees into the Claude Code home — `rules/`, `references/`, `agents/`, `skills/`, `commands/` — and records their paths and hashes in a managed-file manifest. Later updates back up and retire unchanged files removed upstream while preserving customized or unrelated files.
+
+**The installer never edits your `CLAUDE.md`.** Behavior rules are discrete files under `rules/`, which Claude Code loads into every session. Uninstalling a rule is deleting a file, not editing around a marker.
 
 ### Support-only install
 
-Use this only when the user explicitly says the global instructions already live in their global `CLAUDE.md`.
+Use this only when the user explicitly says they manage their own behavior instructions.
 
-Support-only mode avoids duplicating the full instruction file and installs only the supporting reference docs, skills, and custom subagents.
+Support-only mode skips `rules/` and installs references, skills, commands, and custom subagents. It never removes a rule set a previous full install left behind.
+
+### Install as a plugin
+
+The repository is also a Claude Code marketplace:
+
+```bash
+claude plugin marketplace add ArcanEdge-AI/coding-agent-playbook-claude-code
+```
+
+```bash
+claude plugin install coding-agent-playbook@coding-agent-playbook-claude-code
+```
+
+Plugins carry `agents/`, `skills/`, and `commands/` — but **not** instruction rules or `references/`, which no plugin component can contribute. The bundled installer does everything in one step and stays the recommended path; the plugin exists for people who want `claude plugin update` to manage the component half.
 
 ---
 
@@ -395,7 +412,7 @@ The project name should be detected automatically, and the description should be
 Start the workflow with:
 
 ```text
-claude-prompts/coordinate-active-project-work.md
+/coordinate-work
 ```
 
 Supporting files:
@@ -449,6 +466,9 @@ references/worktrees.md
 ├── INSTALL.md
 ├── LICENSE
 ├── README.md
+├── .claude-plugin/
+│   ├── marketplace.json
+│   └── plugin.json
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
 │   │   ├── bug_report.md
@@ -466,11 +486,8 @@ references/worktrees.md
 │   └── test-triager.md
 ├── assets/
 │   └── coding-agent-playbook-claude-code-hero.png
-├── claude-prompts/
-│   ├── coordinate-active-project-work.md
-│   └── setup-global-claude-support-system.md
-├── custom-instructions/
-│   └── global-coding-agent-instructions.md
+├── commands/
+│   └── coordinate-work.md
 ├── install/
 │   ├── install.ps1
 │   └── install.sh
@@ -493,6 +510,13 @@ references/worktrees.md
 │       ├── task-graph.md
 │       ├── testing.md
 │       └── worktree-manifest.md
+├── rules/
+│   ├── playbook-00-role-and-hierarchy.md
+│   ├── playbook-10-understand-and-plan.md
+│   ├── playbook-20-delegation.md
+│   ├── playbook-30-code-quality.md
+│   ├── playbook-40-verification.md
+│   └── playbook-50-completion.md
 ├── scripts/
 │   └── validate.sh
 └── skills/

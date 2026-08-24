@@ -18,9 +18,17 @@ A full install creates or updates this user-level structure:
 
 ```text
 $CLAUDE_HOME/
-  CLAUDE.md
   .coding-agent-playbook-claude-code-managed-files.tsv
   .coding-agent-playbook-backups/<timestamp>/   # backups of anything replaced
+  rules/
+    playbook-00-role-and-hierarchy.md
+    playbook-10-understand-and-plan.md
+    playbook-20-delegation.md
+    playbook-30-code-quality.md
+    playbook-40-verification.md
+    playbook-50-completion.md
+  commands/
+    coordinate-work.md
   references/
     README.md
     model-routing.md
@@ -49,6 +57,8 @@ $CLAUDE_HOME/
     senior-code-review/SKILL.md
 ```
 
+**The installer never edits your `CLAUDE.md`.** Behavior rules install as discrete files under `rules/`, which Claude Code loads into every session the same way. Nothing is spliced into a file you also own, so uninstalling a rule is deleting a file.
+
 Path resolution:
 
 - `CLAUDE_HOME`: use `$CLAUDE_CONFIG_DIR` if set, otherwise `~/.claude`.
@@ -60,33 +70,36 @@ Path resolution:
 
 Use this for normal installs and every normal update. It is the default when no mode flag is provided.
 
-Full install:
+Full install copies five trees into `$CLAUDE_HOME`: `rules/`, `references/`, `agents/`, `skills/`, and `commands/`.
 
-- installs the global coding-agent instructions into `$CLAUDE_HOME/CLAUDE.md`
-- copies reference docs into `$CLAUDE_HOME/references/`
-- copies custom Claude Code subagent definitions into `$CLAUDE_HOME/agents/`
-- copies skills into `$CLAUDE_HOME/skills/`
+Any file the installer replaces is first copied to `$CLAUDE_HOME/.coding-agent-playbook-backups/<timestamp>/`, mirroring its relative path. Backups are deliberately kept out of the managed trees so those directories contain only managed files.
 
-The global instruction body is always installed inside one clearly marked Coding Agent Playbook — Claude Code Edition section. Preserve content outside the markers. Add the marked section when both markers are absent or replace exactly one well-ordered marked section after a timestamped backup. If only one marker exists, either marker is duplicated, or the end appears before the start, stop without writing the file.
-
-Any file the installer replaces is first copied to `$CLAUDE_HOME/.coding-agent-playbook-backups/<timestamp>/`, mirroring its relative path. Backups are deliberately kept out of `references/`, `agents/`, and `skills/` so those trees contain only managed files.
-
-After a successful run, the installer writes `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` with every managed support-file path and source SHA-256. On later runs, files removed from the repository are backed up and retired only when they still match the previously installed hash. Customized formerly managed files are preserved and reported. Files that were never recorded as playbook-managed are never removed. An existing `.claude-code-agent-playbook-managed-files.tsv` is migrated automatically after a successful update.
+After a successful run, the installer writes `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` with every managed file path and source SHA-256. On later runs, files removed from the repository are backed up and retired only when they still match the previously installed hash. Customized formerly managed files are preserved and reported. Files that were never recorded as playbook-managed are never removed. An existing `.claude-code-agent-playbook-managed-files.tsv` is migrated automatically after a successful update.
 
 The first manifest-aware update has no previous ownership record, so it safely preserves existing unlisted files. Subsequent updates can distinguish unchanged retired files from user customizations.
 
 ### Support-only install
 
-Use this only when the user explicitly requests support-only mode and confirms that the full global instructions already live in their global `CLAUDE.md` manually. Do not infer support-only mode merely because an older installation or an existing `CLAUDE.md` is present.
+Use this only when the user explicitly requests support-only mode and confirms they manage their own behavior instructions. Do not infer support-only mode merely because an older installation is present.
 
-Support-only install:
+Support-only install skips `rules/` entirely and installs `references/`, `agents/`, `skills/`, and `commands/`. It neither writes nor retires anything under `$CLAUDE_HOME/rules/`, so a previously installed rule set is left untouched rather than removed.
 
-- does not duplicate the full global instructions into `$CLAUDE_HOME/CLAUDE.md`
-- adds only a short reference-map pointer if useful
-- still copies reference docs, skills, and custom Claude Code subagent definitions
-- still updates the managed-file manifest and safely retires unchanged files removed from later playbook releases
+## Install as a Plugin
 
-Support-only reruns use the same marker validation and replacement rules, so installed pointers update without duplicating user-authored content.
+The repository is also a Claude Code marketplace, so `agents/`, `skills/`, and `commands/` can be installed and updated through the plugin system instead:
+
+```bash
+claude plugin marketplace add ArcanEdge-AI/coding-agent-playbook-claude-code
+```
+
+```bash
+claude plugin install coding-agent-playbook@coding-agent-playbook-claude-code
+```
+
+Two things to know before choosing this path:
+
+- **Plugins cannot contribute instruction rules or `references/`.** A plugin ships commands, agents, skills, hooks, and MCP/LSP servers. You still need the installer, or a manual copy, for `rules/` and `references/`.
+- **Because the two halves update through different channels, they can drift.** The bundled installer does everything in one step and is the recommended path; the plugin is for people who specifically want `claude plugin update` to manage the component half.
 
 ## Human Install
 
@@ -141,8 +154,8 @@ When an AI coding agent is asked to install this repository, it should:
 3. Resolve `CLAUDE_HOME`.
 4. Inspect existing target files before writing.
 5. Back up any existing file before changing it.
-6. Use full install for both installation and update unless the user explicitly asks for support-only mode. Existing global instructions, markers, or support files are not permission to change modes.
-7. Copy reference docs, skills, and custom Claude Code subagent definitions to the expected user-level locations.
+6. Use full install for both installation and update unless the user explicitly asks for support-only mode. Existing instructions or support files are not permission to change modes.
+7. Copy instruction rules, reference docs, skills, commands, and custom Claude Code subagent definitions to the expected user-level locations.
 8. Validate the installed files and Claude Code YAML frontmatter. The bundled installers do this and exit non-zero on failure — check the exit code, do not just read the output.
 9. Report exactly what changed, what was skipped, and where backups were written.
 
@@ -154,8 +167,9 @@ The installers run these themselves and **exit non-zero if any check fails**, so
 
 Files that must exist:
 
-- `$CLAUDE_HOME/CLAUDE.md` — present, or intentionally left as a pointer-only file
-- `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` — lists every current managed support file exactly once
+- `$CLAUDE_HOME/rules/` — the six `playbook-*.md` instruction rules (full mode only)
+- `$CLAUDE_HOME/commands/coordinate-work.md`
+- `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` — lists every current managed file exactly once
 - `$CLAUDE_HOME/references/` — `model-routing.md`, `subagents.md`, `worktrees.md`, `multi-session-coordination.md`, `reference-doc-routing.md`
 - `$CLAUDE_HOME/references/templates/` — `active-work-record.md`, `task-graph.md`, `worktree-manifest.md`
 - `$CLAUDE_HOME/agents/` — `local-orchestrator.md`, `read-only-explorer.md`, `senior-reviewer.md`, `docs-researcher.md`, `test-triager.md`, `isolated-worker.md`
@@ -192,6 +206,8 @@ This project does not currently ship an automatic uninstall command.
 To remove it manually, delete:
 
 ```text
+$CLAUDE_HOME/rules/playbook-*.md
+$CLAUDE_HOME/commands/coordinate-work.md
 $CLAUDE_HOME/references/
 $CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv
 $CLAUDE_HOME/.coding-agent-playbook-backups/
@@ -209,4 +225,10 @@ $CLAUDE_HOME/skills/reference-doc-routing/
 $CLAUDE_HOME/skills/senior-code-review/
 ```
 
-If you used full install and want to remove the global instructions, edit `$CLAUDE_HOME/CLAUDE.md` and remove the section between the Coding Agent Playbook — Claude Code Edition start/end markers.
+Nothing needs to be edited out of `CLAUDE.md` — the installer never wrote there.
+
+If you installed the plugin as well:
+
+```bash
+claude plugin uninstall coding-agent-playbook
+```

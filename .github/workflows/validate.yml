@@ -55,9 +55,11 @@ jobs:
           ./install/install.ps1 -Full
           if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited $LASTEXITCODE" }
           foreach ($p in @(
-            'CLAUDE.md',
+            'rules/playbook-00-role-and-hierarchy.md',
+            'rules/playbook-20-delegation.md',
             'references/model-routing.md',
             'agents/local-orchestrator.md',
+            'commands/coordinate-work.md',
             'skills/senior-code-review/SKILL.md'
           )) {
             $full = Join-Path $home2 $p
@@ -71,7 +73,7 @@ jobs:
           $ErrorActionPreference = 'Continue'
           $clone = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
           New-Item -ItemType Directory -Force -Path $clone | Out-Null
-          foreach ($d in @('agents','references','skills','custom-instructions','install')) {
+          foreach ($d in @('agents','references','skills','rules','commands','install')) {
             Copy-Item -Recurse -Path $d -Destination (Join-Path $clone $d)
           }
           Remove-Item -Recurse -Force (Join-Path $clone 'skills/senior-code-review')

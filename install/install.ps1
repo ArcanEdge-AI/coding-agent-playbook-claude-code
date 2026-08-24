@@ -143,6 +143,9 @@ function Get-CurrentManifestEntries {
 
   $Entries = @()
   foreach ($RootName in $ManagedRoots.Keys) {
+    # Support-only mode leaves the user's own instructions alone, so the rules
+    # tree is neither installed nor recorded as managed.
+    if ($RootName -eq "rules" -and $Mode -eq "support-only") { continue }
     $SourceRoot = (Resolve-Path -LiteralPath $ManagedRoots[$RootName].Source).Path
     foreach ($File in Get-ChildItem -LiteralPath $SourceRoot -Recurse -File) {
       $RelativePath = $File.FullName.Substring($SourceRoot.Length).TrimStart('\', '/') -replace '\\', '/'
@@ -238,6 +241,11 @@ function Retire-StaleManagedFiles {
       continue
     }
 
+    if ($PreviousEntries[$Key].Root -eq "rules" -and $Mode -eq "support-only") {
+      Write-Step "Support-only mode: leaving instruction rules in place."
+      continue
+    }
+
     $Entry = $PreviousEntries[$Key]
     $Destination = Get-ManagedDestination $ManagedRoots $Entry.Root $Entry.Path
     if (-not (Test-Path -LiteralPath $Destination -PathType Leaf)) {
@@ -302,102 +310,16 @@ function Retire-LegacyManifest {
   Invoke-InstallCommand { Remove-Item -LiteralPath $LegacyPath -Force } "Remove-Item '$LegacyPath'"
 }
 
-function AddOrReplace-PlaybookSection {
-  param([string]$Target, [string]$Title, [string]$Body)
-
-  $StartMarker = "<!-- coding-agent-playbook-claude-code:start -->"
-  $EndMarker = "<!-- coding-agent-playbook-claude-code:end -->"
-  $LegacyStartMarker = "<!-- claude-code-agent-playbook:start -->"
-  $LegacyEndMarker = "<!-- claude-code-agent-playbook:end -->"
-  $Parent = Split-Path -Parent $Target
-  $Existing = ""
-  $Newline = "`n"
-  # Trim trailing newlines so the section matches install.sh, whose $(cat ...)
-  # strips them. Otherwise a blank line accumulates before the end marker.
-  $NormalizedBody = (($Body -replace "`r`n", "`n") -replace "`r", "`n").TrimEnd("`n")
-
-  if (Test-Path -LiteralPath $Target -PathType Leaf) {
-    $Existing = Get-Content -LiteralPath $Target -Raw
-    $Newline = if ($Existing.Contains("`r`n")) { "`r`n" } else { "`n" }
-    $CurrentStartIndex = $Existing.IndexOf($StartMarker, [System.StringComparison]::Ordinal)
-    $CurrentEndIndex = $Existing.IndexOf($EndMarker, [System.StringComparison]::Ordinal)
-    $LegacyStartIndex = $Existing.IndexOf($LegacyStartMarker, [System.StringComparison]::Ordinal)
-    $LegacyEndIndex = $Existing.IndexOf($LegacyEndMarker, [System.StringComparison]::Ordinal)
-    $HasAnyMarker = $CurrentStartIndex -ge 0 -or $CurrentEndIndex -ge 0 -or $LegacyStartIndex -ge 0 -or $LegacyEndIndex -ge 0
-
-    if ($HasAnyMarker) {
-      $CurrentPairValid = $CurrentStartIndex -ge 0 -and $CurrentEndIndex -gt $CurrentStartIndex -and
-        $Existing.IndexOf($StartMarker, $CurrentStartIndex + $StartMarker.Length, [System.StringComparison]::Ordinal) -lt 0 -and
-        $Existing.IndexOf($EndMarker, $CurrentEndIndex + $EndMarker.Length, [System.StringComparison]::Ordinal) -lt 0
-      $LegacyPairValid = $LegacyStartIndex -ge 0 -and $LegacyEndIndex -gt $LegacyStartIndex -and
-        $Existing.IndexOf($LegacyStartMarker, $LegacyStartIndex + $LegacyStartMarker.Length, [System.StringComparison]::Ordinal) -lt 0 -and
-        $Existing.IndexOf($LegacyEndMarker, $LegacyEndIndex + $LegacyEndMarker.Length, [System.StringComparison]::Ordinal) -lt 0
-      $CurrentPairAbsent = $CurrentStartIndex -lt 0 -and $CurrentEndIndex -lt 0
-      $LegacyPairAbsent = $LegacyStartIndex -lt 0 -and $LegacyEndIndex -lt 0
-
-      if ((-not $CurrentPairValid -and -not $CurrentPairAbsent) -or
-          (-not $LegacyPairValid -and -not $LegacyPairAbsent) -or
-          ($CurrentPairValid -and $LegacyPairValid)) {
-        throw "Malformed Coding Agent Playbook — Claude Code Edition markers in $Target; no changes were made."
-      }
-
-      if ($CurrentPairValid) {
-        $ActiveStartIndex = $CurrentStartIndex
-        $ActiveEndIndex = $CurrentEndIndex
-        $ActiveEndMarker = $EndMarker
-      } else {
-        $ActiveStartIndex = $LegacyStartIndex
-        $ActiveEndIndex = $LegacyEndIndex
-        $ActiveEndMarker = $LegacyEndMarker
-        Write-Step "Migrating legacy Coding Agent Playbook markers in $Target"
-      }
-
-      if ($Newline -eq "`r`n") {
-        $NormalizedBody = $NormalizedBody -replace "`n", "`r`n"
-      }
-      $Section = "$StartMarker$Newline# $Title$Newline$Newline$NormalizedBody$Newline$EndMarker"
-      $Updated = $Existing.Substring(0, $ActiveStartIndex) + $Section + $Existing.Substring($ActiveEndIndex + $ActiveEndMarker.Length)
-      if (-not $Updated.EndsWith($Newline)) { $Updated += $Newline }
-      if ($Updated -eq $Existing) {
-        Write-Step "Unchanged $Target"
-        return
-      }
-
-      Backup-File $Target
-      if ($DryRun) {
-        Write-Step "[dry-run] Would replace the Coding Agent Playbook — Claude Code Edition section in $Target"
-      } else {
-        Set-Content -LiteralPath $Target -Value $Updated -Encoding UTF8 -NoNewline
-      }
-      return
-    }
-  }
-
-  if ($Newline -eq "`r`n") {
-    $NormalizedBody = $NormalizedBody -replace "`n", "`r`n"
-  }
-  $Section = "$StartMarker$Newline# $Title$Newline$Newline$NormalizedBody$Newline$EndMarker$Newline"
-  Invoke-InstallCommand { New-Item -ItemType Directory -Force -Path $Parent | Out-Null } "New-Item -ItemType Directory -Force '$Parent'"
-  Backup-File $Target
-
-  if ($DryRun) {
-    Write-Step "[dry-run] Would append $Title to $Target"
-  } elseif (Test-Path -LiteralPath $Target -PathType Leaf) {
-    $Separator = if ($Existing.Length -eq 0) { "" } else { "$Newline$Newline" }
-    Set-Content -LiteralPath $Target -Value ($Existing + $Separator + $Section) -Encoding UTF8 -NoNewline
-  } else {
-    Set-Content -LiteralPath $Target -Value $Section -Encoding UTF8 -NoNewline
-  }
-}
-
-$GlobalInstructions = Join-Path $RepoRoot "custom-instructions\global-coding-agent-instructions.md"
+$RulesDir = Join-Path $RepoRoot "rules"
 $ReferencesDir = Join-Path $RepoRoot "references"
 $AgentsDir = Join-Path $RepoRoot "agents"
 $SkillsDir = Join-Path $RepoRoot "skills"
-$TargetClaudeMd = Join-Path $ClaudeHome "CLAUDE.md"
+$CommandsDir = Join-Path $RepoRoot "commands"
 $ManagedRoots = [ordered]@{
-  references = @{ Source = $ReferencesDir; Destination = (Join-Path $ClaudeHome "references") }
   agents = @{ Source = $AgentsDir; Destination = (Join-Path $ClaudeHome "agents") }
+  commands = @{ Source = $CommandsDir; Destination = (Join-Path $ClaudeHome "commands") }
+  references = @{ Source = $ReferencesDir; Destination = (Join-Path $ClaudeHome "references") }
+  rules = @{ Source = $RulesDir; Destination = (Join-Path $ClaudeHome "rules") }
   skills = @{ Source = $SkillsDir; Destination = (Join-Path $ClaudeHome "skills") }
 }
 
@@ -407,8 +329,8 @@ Write-Step "Repository: $RepoRoot"
 Write-Step "CLAUDE_HOME: $ClaudeHome"
 Write-Step "Managed-file manifest: $ManifestPath"
 
-if (-not (Test-Path -LiteralPath $GlobalInstructions -PathType Leaf)) {
-  throw "Missing global instructions: $GlobalInstructions"
+if (-not (Test-Path -LiteralPath $RulesDir -PathType Container)) {
+  throw "Missing instruction rules directory: $RulesDir"
 }
 
 $CurrentManifestEntries = Get-CurrentManifestEntries $ManagedRoots
@@ -419,62 +341,15 @@ if ($PreviousManifestPath -eq $LegacyManifestPath) {
 $PreviousManifestEntries = Read-InstallManifest $PreviousManifestPath $ManagedRoots
 
 if ($Mode -eq "full") {
-  $Body = Get-Content -LiteralPath $GlobalInstructions -Raw
-  AddOrReplace-PlaybookSection $TargetClaudeMd "Coding Agent Playbook — Claude Code Edition Global Instructions" $Body
+  Copy-PlaybookTree $RulesDir $ManagedRoots['rules'].Destination
 } else {
-  $PointerBody = @'
-The primary global coding-agent behavior may already be configured in this CLAUDE.md file.
-
-Supporting global reference documents live under the Claude Code home references directory:
-
-- `references/README.md` — map of the available global reference docs
-- `references/model-routing.md` — how Claude Code resolves a subagent's model, what overrides what, effort semantics, permission modes, tool boundaries, and nesting depth
-- `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
-- `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
-- `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
-- `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
-- `references/templates/` — templates for repository CLAUDE.md, architecture, testing, access control, design system, release, API contracts, data model, active work, task graphs, and worktree manifests
-
-Reusable Claude Code skills live under the Claude Code home skills directory:
-
-- `skills/subagent-orchestration/SKILL.md`
-- `skills/task-graph-orchestration/SKILL.md`
-- `skills/worktree-lifecycle/SKILL.md`
-- `skills/multi-session-coordination/SKILL.md`
-- `skills/reference-doc-routing/SKILL.md`
-- `skills/senior-code-review/SKILL.md`
-
-Custom Claude Code subagents live under the Claude Code home agents directory:
-
-- `agents/local-orchestrator.md`
-- `agents/read-only-explorer.md`
-- `agents/senior-reviewer.md`
-- `agents/docs-researcher.md`
-- `agents/test-triager.md`
-- `agents/isolated-worker.md`
-
-Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
-
-Pass an explicit `model` on every `Agent` dispatch; never leave it to default. Keep each child at or below the main session's tier (`opus` > `sonnet` > `haiku`) and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating does not require stepping down. Bundled definitions pin `model: haiku` so an omitted-model dispatch fails closed. Note that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`, and organization allowlists can substitute; verify rather than assume when attribution matters. `effort` comes from the agent definition and overrides session effort — it is a property of the role, not a ceiling inherited from the caller.
-
-Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in model, permissions, tools, scope, workspace, and authority.
-
-Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
-
-The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
-
-Verify implementation-relevant claims against primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
-
-When delegating to subagents or coordinating independent sessions, pass only the relevant document names, paths, or sections. Do not dump large documents or full session transcripts into prompts.
-
-The root session remains accountable for the final plan, final diff, validation, and final response.
-'@
-  AddOrReplace-PlaybookSection $TargetClaudeMd "Global Reference Documents and Subagent Support" $PointerBody
+  Write-Step "Support-only mode: skipping $($ManagedRoots['rules'].Destination) (instruction rules not installed)."
 }
 
 Copy-PlaybookTree $ReferencesDir $ManagedRoots['references'].Destination
 Copy-PlaybookTree $AgentsDir $ManagedRoots['agents'].Destination
 Copy-PlaybookTree $SkillsDir $ManagedRoots['skills'].Destination
+Copy-PlaybookTree $CommandsDir $ManagedRoots['commands'].Destination
 Assert-ManagedFilesMatch $CurrentManifestEntries $ManagedRoots
 Retire-StaleManagedFiles $PreviousManifestEntries $CurrentManifestEntries $ManagedRoots
 Write-InstallManifest $CurrentManifestEntries $ManifestPath
@@ -483,7 +358,7 @@ Retire-LegacyManifest $LegacyManifestPath
 Write-Step ""
 Write-Step "Validation:"
 $CheckPaths = @(
-  $TargetClaudeMd,
+  (Join-Path $ClaudeHome "commands\coordinate-work.md"),
   (Join-Path $ClaudeHome "references\model-routing.md"),
   (Join-Path $ClaudeHome "references\subagents.md"),
   (Join-Path $ClaudeHome "references\worktrees.md"),
@@ -593,6 +468,17 @@ foreach ($AgentName in $ExpectedAgentNames) {
   }
 }
 
+if ($Mode -eq "full") {
+  foreach ($Rule in @(Get-ChildItem -LiteralPath $RulesDir -Filter *.md -File | Sort-Object Name)) {
+    $InstalledRule = Join-Path (Join-Path $ClaudeHome "rules") $Rule.Name
+    if (Test-Path -LiteralPath $InstalledRule -PathType Leaf) {
+      Write-Step "OK rule: $InstalledRule"
+    } else {
+      Write-Failure "Missing installed rule: $InstalledRule"
+    }
+  }
+}
+
 Write-Step ""
 if (Test-Path -LiteralPath $BackupRoot -PathType Container) {
   Write-Step "Backups for this run: $BackupRoot"
@@ -605,4 +491,4 @@ if ($script:ValidationFailures -gt 0) {
 }
 
 Write-Step ""
-Write-Step "Install complete. Restart Claude Code or start a new session if needed so new instructions, skills, and subagents are loaded."
+Write-Step "Install complete. Restart Claude Code or start a new session if needed so new rules, skills, commands, and subagents are loaded."
