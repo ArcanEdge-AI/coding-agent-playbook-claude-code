@@ -1,6 +1,6 @@
 # Repository Coding Agent Instructions
 
-This repository is a public playbook of Claude Code instruction rules, reference documents, skills, commands, custom subagent definitions, and plugin manifests. It is almost entirely Markdown, plus two installers and a small amount of YAML and JSON.
+This repository is a public playbook of Claude Code global instructions, reference documents, skills, and custom subagent definitions. It is almost entirely Markdown, plus two installers and a small amount of YAML frontmatter.
 
 Repository-specific guidance here overrides the global instructions where it is more specific.
 
@@ -40,7 +40,7 @@ These are load-bearing. If you change guidance that touches them, verify against
 
 ## Writing Style for Agent-Facing Files
 
-The `agents/`, `references/`, `skills/`, `rules/`, and `commands/` files are read by models, and how they are written changes how well they are followed.
+The `agents/`, `references/`, `skills/`, and `custom-instructions/` files are read by models, and how they are written changes how well they are followed.
 
 - **Put a rule where its actor can act on it.** Routing rules belong in the caller's documentation, not duplicated into every leaf agent's system prompt — a leaf cannot choose its own model.
 - **Lead with the decision**, then the rule, then the exception.
@@ -70,12 +70,8 @@ Automated checks (CI enforces all of these):
 - Only `agents/local-orchestrator.md` lists `Agent` in `tools`; the other five list `Agent` in `disallowedTools`.
 - No bundled agent sets `isolation: worktree`.
 - Fenced code blocks are balanced, and every repository path referenced in Markdown exists.
-- Both installers pass a real full-mode install into a temporary home and exit non-zero when a managed file is missing.
-- The always-on `rules/` tree totals 200 lines or fewer. Claude Code documents that as the point past which adherence drops; anything procedural belongs in a skill, not in `rules/`.
-- Every `rules/*.md` opens with an HTML comment marking it managed. Block-level HTML comments are stripped before injection, so the note costs no context.
-- `commands/coordinate-work.md` has `description` frontmatter.
-- `claude plugin validate . --strict` passes for the marketplace manifest, and for the plugin manifest with its components.
-- `install.sh` and `install.ps1` produce a byte-identical Claude Code home in both full and support-only mode. They have drifted before — a case-insensitive manifest sort made each installer rewrite the other's manifest on every run.
+- Both installers pass a real full-mode install into a temporary home, including a body containing backslashes, and exit non-zero when a managed file is missing.
+- `install.sh` and `install.ps1` produce a byte-identical Claude Code home in both full and support-only mode. They have drifted before — a trailing-newline difference and a case-insensitive manifest sort made each installer rewrite the other's files.
 - `install.sh` passes `bash -n`.
 
 Manual review:
@@ -84,8 +80,6 @@ Manual review:
 - `README.md`'s repository-structure block matches the actual tree.
 - Install docs and scripts reference the current file set.
 - Installers default to full mode, maintain the managed-file manifest, retire only unchanged formerly managed files, write backups outside the managed trees, and preserve customized or unrelated files.
-- **Neither installer writes to the user's `CLAUDE.md`.** Behavior rules ship as discrete files under `rules/`. Do not reintroduce marked-section splicing into a file the user owns — that is what the backup, marker-validation, and escape-handling machinery existed to protect, and all of it is gone.
-- Support-only mode skips `rules/` and must never retire a rule set a previous full install left behind.
 - Generic policy changes were compared with the companion Codex playbook.
 - The final diff contains no paths, schemas, model names, or commands belonging to another coding-agent environment.
 

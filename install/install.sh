@@ -21,8 +21,8 @@ for arg in "$@"; do
       cat <<'HELP'
 Usage: bash install/install.sh [--full|--support-only] [--dry-run]
 
---full          Install instruction rules, references, skills, commands, and subagents. This is the default.
---support-only  Install everything except the instruction rules, for users who manage their own instructions.
+--full          Install or update global instructions, references, skills, and subagents. This is the default.
+--support-only  Explicit pointer-only mode for users whose global instructions already live in CLAUDE.md.
 --dry-run       Print actions without writing files.
 HELP
       exit 0
@@ -74,15 +74,12 @@ run() {
 
 sha256_file() {
   local path="$1"
-  # Hash from stdin, never by filename argument: GNU coreutils escapes names
-  # containing a backslash and prefixes the line with `\`, which corrupted the
-  # digest for any Windows-style CLAUDE_CONFIG_DIR under Git Bash.
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum < "$path" | awk '{ print tolower($1) }'
+    sha256sum "$path" | awk '{ print tolower($1) }'
   elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 < "$path" | awk '{ print tolower($1) }'
+    shasum -a 256 "$path" | awk '{ print tolower($1) }'
   elif command -v openssl >/dev/null 2>&1; then
-    openssl dgst -sha256 < "$path" | awk '{ print tolower($NF) }'
+    openssl dgst -sha256 "$path" | awk '{ print tolower($NF) }'
   else
     say "No SHA-256 tool is available; install sha256sum, shasum, or openssl." >&2
     return 1
@@ -161,8 +158,6 @@ destination_for_manifest_entry() {
     references) printf '%s\n' "$CLAUDE_HOME/references/$rel" ;;
     agents) printf '%s\n' "$CLAUDE_HOME/agents/$rel" ;;
     skills) printf '%s\n' "$CLAUDE_HOME/skills/$rel" ;;
-    rules) printf '%s\n' "$CLAUDE_HOME/rules/$rel" ;;
-    commands) printf '%s\n' "$CLAUDE_HOME/commands/$rel" ;;
     *)
       say "Unknown managed-file root '$root'." >&2
       return 1
@@ -177,16 +172,11 @@ build_current_manifest() {
   printf '# coding-agent-playbook-claude-code managed files v1\n' > "$output"
   # Alphabetical root order, matching install.ps1's Sort-Object Root, Path, so
   # both installers write byte-identical manifests.
-  for root in agents commands references rules skills; do
-    # Support-only mode leaves the user's own instructions alone, so the
-    # rules tree is neither installed nor recorded as managed.
-    [[ "$root" == "rules" && "$MODE" == "support-only" ]] && continue
+  for root in agents references skills; do
     case "$root" in
       references) src_dir="$REFERENCES_DIR" ;;
       agents) src_dir="$AGENTS_DIR" ;;
       skills) src_dir="$SKILLS_DIR" ;;
-      rules) src_dir="$RULES_DIR" ;;
-      commands) src_dir="$COMMANDS_DIR" ;;
     esac
 
     while IFS= read -r src; do
@@ -223,7 +213,7 @@ validate_install_manifest() {
       return 1
     fi
     case "$root" in
-      references|agents|skills|rules|commands) ;;
+      references|agents|skills) ;;
       *)
         say "Unknown managed-file root '$root' at $path:$line_number" >&2
         return 1
@@ -283,10 +273,6 @@ retire_stale_managed_files() {
   local root rel expected_hash extra destination actual_hash
   while IFS=$'\t' read -r root rel expected_hash extra || [[ -n "$root$rel$expected_hash$extra" ]]; do
     [[ -z "$root" || "$root" == \#* ]] && continue
-    if [[ "$root" == "rules" && "$MODE" == "support-only" ]]; then
-      say "Support-only mode: leaving instruction rules in place."
-      continue
-    fi
     if manifest_contains_key "$current_manifest" "$root" "$rel"; then
       continue
     fi
@@ -334,11 +320,179 @@ retire_legacy_manifest() {
   run rm -f -- "$legacy_path"
 }
 
-RULES_DIR="$REPO_ROOT/rules"
+add_or_replace_playbook_section() {
+  local target="$1"
+  local title="$2"
+  local body="$3"
+  local start_marker='<!-- coding-agent-playbook-claude-code:start -->'
+  local end_marker='<!-- coding-agent-playbook-claude-code:end -->'
+  local legacy_start_marker='<!-- claude-code-agent-playbook:start -->'
+  local legacy_end_marker='<!-- claude-code-agent-playbook:end -->'
+
+  if [[ -f "$target" ]]; then
+    local current_start_count current_end_count current_start_line current_end_line current_line_ending
+    local legacy_start_count legacy_end_count legacy_start_line legacy_end_line legacy_line_ending
+    local current_pair_valid=0 legacy_pair_valid=0
+    local active_start_marker active_end_marker marker_line_ending newline section section_file temp
+    read -r current_start_count current_end_count current_start_line current_end_line current_line_ending legacy_start_count legacy_end_count legacy_start_line legacy_end_line legacy_line_ending < <(
+      awk -v start="$start_marker" -v end="$end_marker" -v legacy_start="$legacy_start_marker" -v legacy_end="$legacy_end_marker" '
+        BEGIN {
+          current_line_ending = "none"
+          legacy_line_ending = "none"
+        }
+        {
+          line = $0
+          has_cr = sub(/\r$/, "", line)
+          if (line == start) {
+            current_start_count++
+            if (current_start_line == 0) {
+              current_start_line = NR
+              current_line_ending = has_cr ? "crlf" : "lf"
+            }
+          }
+          if (line == end) {
+            current_end_count++
+            if (current_end_line == 0) current_end_line = NR
+          }
+          if (line == legacy_start) {
+            legacy_start_count++
+            if (legacy_start_line == 0) {
+              legacy_start_line = NR
+              legacy_line_ending = has_cr ? "crlf" : "lf"
+            }
+          }
+          if (line == legacy_end) {
+            legacy_end_count++
+            if (legacy_end_line == 0) legacy_end_line = NR
+          }
+        }
+        END {
+          print current_start_count + 0, current_end_count + 0, current_start_line + 0, current_end_line + 0, current_line_ending, \
+            legacy_start_count + 0, legacy_end_count + 0, legacy_start_line + 0, legacy_end_line + 0, legacy_line_ending
+        }
+      ' "$target"
+    )
+
+    if (( current_start_count != 0 || current_end_count != 0 || legacy_start_count != 0 || legacy_end_count != 0 )); then
+      if (( current_start_count != 0 || current_end_count != 0 )); then
+        if (( current_start_count != 1 || current_end_count != 1 || current_end_line <= current_start_line )); then
+          say "Malformed Coding Agent Playbook — Claude Code Edition markers in $target; no changes were made." >&2
+          return 1
+        fi
+        current_pair_valid=1
+      fi
+
+      if (( legacy_start_count != 0 || legacy_end_count != 0 )); then
+        if (( legacy_start_count != 1 || legacy_end_count != 1 || legacy_end_line <= legacy_start_line )); then
+          say "Malformed Coding Agent Playbook — Claude Code Edition markers in $target; no changes were made." >&2
+          return 1
+        fi
+        legacy_pair_valid=1
+      fi
+
+      if (( current_pair_valid == 1 && legacy_pair_valid == 1 )); then
+        say "Malformed Coding Agent Playbook — Claude Code Edition markers in $target; no changes were made." >&2
+        return 1
+      fi
+
+      if (( current_pair_valid == 1 )); then
+        active_start_marker="$start_marker"
+        active_end_marker="$end_marker"
+        marker_line_ending="$current_line_ending"
+      else
+        active_start_marker="$legacy_start_marker"
+        active_end_marker="$legacy_end_marker"
+        marker_line_ending="$legacy_line_ending"
+        say "Migrating legacy Coding Agent Playbook markers in $target"
+      fi
+
+      newline=$'\n'
+      if [[ "$marker_line_ending" == "crlf" ]]; then
+        newline=$'\r\n'
+        body="${body//$'\r\n'/$'\n'}"
+        body="${body//$'\n'/$'\r\n'}"
+      fi
+      section="$start_marker$newline# $title$newline$newline$body$newline$end_marker$newline"
+      # The section is passed through a file rather than `awk -v` because `-v`
+      # applies escape-sequence processing and would corrupt any backslash in
+      # the instruction body (for example `\n`, `\t`, or a Windows path).
+      section_file="$(mktemp "${target}.coding-agent-playbook-claude-code-section.XXXXXX")"
+      printf '%s' "$section" > "$section_file"
+      temp="$(mktemp "${target}.coding-agent-playbook-claude-code.XXXXXX")"
+      awk -v start="$active_start_marker" -v end="$active_end_marker" -v section_file="$section_file" -v newline="$newline" '
+        BEGIN {
+          section = ""
+          while ((getline section_line < section_file) > 0) {
+            section = section section_line "\n"
+          }
+          close(section_file)
+        }
+        {
+          line = $0
+          sub(/\r$/, "", line)
+        }
+        line == start { printf "%s", section; in_section = 1; next }
+        line == end { in_section = 0; next }
+        !in_section { printf "%s%s", line, newline }
+      ' "$target" > "$temp"
+      rm -f "$section_file"
+
+      if cmp -s "$temp" "$target"; then
+        rm -f "$temp"
+        say "Unchanged $target"
+        return
+      fi
+
+      backup_file "$target"
+      if [[ "$DRY_RUN" == "1" ]]; then
+        rm -f "$temp"
+        say "[dry-run] Would replace the Coding Agent Playbook — Claude Code Edition section in $target"
+        return
+      fi
+
+      cat "$temp" > "$target"
+      rm -f "$temp"
+      return
+    fi
+  fi
+
+  run mkdir -p "$(dirname "$target")"
+  backup_file "$target"
+
+  if [[ "$DRY_RUN" == "1" ]]; then
+    say "[dry-run] Would append $title to $target"
+    return
+  fi
+
+  newline=$'\n'
+  if [[ -f "$target" ]] && awk '
+    NR == 1 {
+      line = $0
+      exit sub(/\r$/, "", line) ? 0 : 1
+    }
+    END { if (NR == 0) exit 1 }
+  ' "$target"; then
+    newline=$'\r\n'
+    body="${body//$'\r\n'/$'\n'}"
+    body="${body//$'\n'/$'\r\n'}"
+  fi
+
+  {
+    if [[ -s "$target" ]]; then
+      printf '%s%s' "$newline" "$newline"
+    fi
+    printf '%s%s' "$start_marker" "$newline"
+    printf '# %s%s%s' "$title" "$newline" "$newline"
+    printf '%s%s' "$body" "$newline"
+    printf '%s%s' "$end_marker" "$newline"
+  } >> "$target"
+}
+
+GLOBAL_INSTRUCTIONS="$REPO_ROOT/custom-instructions/global-coding-agent-instructions.md"
 REFERENCES_DIR="$REPO_ROOT/references"
 AGENTS_DIR="$REPO_ROOT/agents"
 SKILLS_DIR="$REPO_ROOT/skills"
-COMMANDS_DIR="$REPO_ROOT/commands"
+TARGET_CLAUDE_MD="$CLAUDE_HOME/CLAUDE.md"
 
 say "Coding Agent Playbook — Claude Code Edition installer"
 say "Mode: $MODE"
@@ -346,8 +500,8 @@ say "Repository: $REPO_ROOT"
 say "CLAUDE_HOME: $CLAUDE_HOME"
 say "Managed-file manifest: $MANIFEST_PATH"
 
-if [[ ! -d "$RULES_DIR" ]]; then
-  say "Missing instruction rules directory: $RULES_DIR" >&2
+if [[ ! -f "$GLOBAL_INSTRUCTIONS" ]]; then
+  say "Missing global instructions: $GLOBAL_INSTRUCTIONS" >&2
   exit 1
 fi
 
@@ -362,15 +516,60 @@ fi
 validate_install_manifest "$PREVIOUS_MANIFEST_PATH"
 
 if [[ "$MODE" == "full" ]]; then
-  copy_tree "$RULES_DIR" "$CLAUDE_HOME/rules"
+  BODY="$(cat "$GLOBAL_INSTRUCTIONS")"
+  add_or_replace_playbook_section "$TARGET_CLAUDE_MD" "Coding Agent Playbook — Claude Code Edition Global Instructions" "$BODY"
 else
-  say "Support-only mode: skipping $CLAUDE_HOME/rules (instruction rules not installed)."
+  POINTER_BODY='The primary global coding-agent behavior may already be configured in this CLAUDE.md file.
+
+Supporting global reference documents live under the Claude Code home references directory:
+
+- `references/README.md` — map of the available global reference docs
+- `references/model-routing.md` — how Claude Code resolves a subagent'\''s model, what overrides what, effort semantics, permission modes, tool boundaries, and nesting depth
+- `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
+- `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
+- `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
+- `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
+- `references/templates/` — templates for repository CLAUDE.md, architecture, testing, access control, design system, release, API contracts, data model, active work, task graphs, and worktree manifests
+
+Reusable Claude Code skills live under the Claude Code home skills directory:
+
+- `skills/subagent-orchestration/SKILL.md`
+- `skills/task-graph-orchestration/SKILL.md`
+- `skills/worktree-lifecycle/SKILL.md`
+- `skills/multi-session-coordination/SKILL.md`
+- `skills/reference-doc-routing/SKILL.md`
+- `skills/senior-code-review/SKILL.md`
+
+Custom Claude Code subagents live under the Claude Code home agents directory:
+
+- `agents/local-orchestrator.md`
+- `agents/read-only-explorer.md`
+- `agents/senior-reviewer.md`
+- `agents/docs-researcher.md`
+- `agents/test-triager.md`
+- `agents/isolated-worker.md`
+
+Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
+
+Pass an explicit `model` on every `Agent` dispatch; never leave it to default. Keep each child at or below the main session'\''s tier (`opus` > `sonnet` > `haiku`) and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating does not require stepping down. Bundled definitions pin `model: haiku` so an omitted-model dispatch fails closed. Note that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`, and organization allowlists can substitute; verify rather than assume when attribution matters. `effort` comes from the agent definition and overrides session effort — it is a property of the role, not a ceiling inherited from the caller.
+
+Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in model, permissions, tools, scope, workspace, and authority.
+
+Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
+
+The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent'\''s worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
+
+Verify implementation-relevant claims against primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
+
+When delegating to subagents or coordinating independent sessions, pass only the relevant document names, paths, or sections. Do not dump large documents or full session transcripts into prompts.
+
+The root session remains accountable for the final plan, final diff, validation, and final response.'
+  add_or_replace_playbook_section "$TARGET_CLAUDE_MD" "Global Reference Documents and Subagent Support" "$POINTER_BODY"
 fi
 
 copy_tree "$REFERENCES_DIR" "$CLAUDE_HOME/references"
 copy_tree "$AGENTS_DIR" "$CLAUDE_HOME/agents"
 copy_tree "$SKILLS_DIR" "$CLAUDE_HOME/skills"
-copy_tree "$COMMANDS_DIR" "$CLAUDE_HOME/commands"
 verify_managed_files "$CURRENT_MANIFEST"
 retire_stale_managed_files "$PREVIOUS_MANIFEST_PATH" "$CURRENT_MANIFEST"
 write_install_manifest "$CURRENT_MANIFEST" "$MANIFEST_PATH"
@@ -381,7 +580,7 @@ say "Validation:"
 [[ "$DRY_RUN" == "1" ]] && say "Dry run only; validation checks are informational."
 
 for path in \
-  "$CLAUDE_HOME/commands/coordinate-work.md" \
+  "$TARGET_CLAUDE_MD" \
   "$CLAUDE_HOME/references/model-routing.md" \
   "$CLAUDE_HOME/references/subagents.md" \
   "$CLAUDE_HOME/references/worktrees.md" \
@@ -479,17 +678,6 @@ for agent_name in \
   fi
 done
 
-if [[ "$MODE" == "full" ]]; then
-  for rule in "$RULES_DIR"/*.md; do
-    installed="$CLAUDE_HOME/rules/$(basename "$rule")"
-    if [[ -f "$installed" ]]; then
-      say "OK rule: $installed"
-    else
-      fail "Missing installed rule: $installed"
-    fi
-  done
-fi
-
 say ""
 if [[ -d "$BACKUP_ROOT" ]]; then
   say "Backups for this run: $BACKUP_ROOT"
@@ -502,4 +690,4 @@ if (( VALIDATION_FAILURES > 0 )); then
 fi
 
 say ""
-say "Install complete. Restart Claude Code or start a new session if needed so new rules, skills, commands, and subagents are loaded."
+say "Install complete. Restart Claude Code or start a new session if needed so new instructions, skills, and subagents are loaded."

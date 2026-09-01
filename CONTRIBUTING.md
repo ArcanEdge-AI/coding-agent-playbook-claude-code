@@ -35,7 +35,7 @@ Avoid adding:
 - Prefer behavior and decision rules over rigid command sequences.
 - Keep examples generic and safe for public reuse.
 
-For files agents read directly (`agents/`, `references/`, `skills/`, `rules/`, `commands/`), also:
+For files agents read directly (`agents/`, `references/`, `skills/`, `custom-instructions/`), also:
 
 - Put a rule where its actor can act on it. Routing rules belong in the caller's documentation, not in every leaf agent's system prompt.
 - Lead with the decision, then the rule, then the exception.

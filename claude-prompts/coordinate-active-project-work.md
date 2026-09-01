@@ -1,19 +1,19 @@
----
-description: Coordinate all active work for the current project across parallel Claude Code sessions, branches, worktrees, and pull requests.
-argument-hint: "[optional constraints, e.g. 'prioritize billing' or 'planning only']"
----
+# Prompt: Coordinate Active Project Work
 
+Use this when several Claude Code sessions are working on related features in the same project and someone needs to hold the whole picture.
+
+```markdown
 Coordinate all active work for the current project.
 
 Use the `multi-session-coordination` skill and consult `references/multi-session-coordination.md`. Consult `references/worktrees.md` if any participating task owns or proposes an auxiliary worktree.
 
-Detect the project directory, repository, default branch, active branch, worktree, and applicable CLAUDE.md instructions from the environment. Do not ask for anything you can determine reliably yourself.
+Detect the project directory, repository, default branch, active branch, worktree, and applicable CLAUDE.md instructions from the environment. Do not ask me for anything you can determine reliably yourself.
 
 Where cross-session messaging is enabled, use `ListAgents` to see which sessions you can reach and `SendMessage` to ask them directly what they own and what they assumed. A session's own answer is stronger evidence than reconstruction from its commits. Note that inbound delivery can be restricted by settings and that some session kinds receive without being able to reply — check what each row supports rather than assuming a round trip.
 
 Where messaging is unavailable, fall back to session metadata, branches, worktrees, pull requests, commits, diffs, tests, and any active-work records — and label the evidence accordingly.
 
-Use `Project - Three-to-Four-Word Description` for new session names. Detect the project name and derive the description from the primary objective. No literal square brackets, and do not ask for a name when the project and task are already clear. If you cannot rename the current session yourself, return the exact recommended name and `/rename` command rather than claiming the rename happened.
+Use `Project - Three-to-Four-Word Description` for new session names. Detect the project name and derive the description from the primary objective. No literal square brackets, and do not ask me for a name when the project and task are already clear. If you cannot rename the current session yourself, return the exact recommended name and `/rename` command rather than claiming the rename happened.
 
 Begin with sessions active in the previous 72 hours where session history is accessible. Include older work when evidence shows it remains unmerged, incomplete, blocked, contract-relevant, or otherwise active. Repository state outranks session recency.
 
@@ -38,8 +38,15 @@ Return:
 7. Recommended implementation order
 8. Copy-ready instructions for each session
 9. Integration verification checklist
-10. Open decisions requiring approval
+10. Open decisions requiring my approval
 
-Do not implement changes unless explicitly asked. Do not claim complete coverage when relevant session context is inaccessible — say what is missing and what it could change. Ask for a specific session name or identifier only when the missing context genuinely prevents a safe coordination decision.
+Do not implement changes unless I explicitly ask. Do not claim complete coverage when relevant session context is inaccessible — say what is missing and what it could change. Ask for a specific session name or identifier only when the missing context genuinely prevents a safe coordination decision.
+```
 
-Additional constraints from the user, if any: $ARGUMENTS
+Add constraints in plain language as needed, for example:
+
+- Prioritize one feature.
+- Include a session I know about.
+- Exclude an abandoned branch.
+- Block database changes until I approve them.
+- Coordinate planning and review only.

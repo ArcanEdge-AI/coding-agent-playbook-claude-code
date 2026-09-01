@@ -82,18 +82,15 @@ done < <(git ls-files '*.md')
 pass "code fences checked"
 
 echo "== referenced repository paths exist =="
-MISSING_PATHS="$(mktemp)"
-grep -rhoE '(references|skills|agents|commands|rules|install|assets|scripts)/[A-Za-z0-9._/*-]+' \
+grep -rhoE '(references|skills|agents|claude-prompts|custom-instructions|install|assets|scripts)/[A-Za-z0-9._/-]+' \
   --include='*.md' . | sed 's/[.,)]*$//' | sort -u | while read -r p; do
-  # A documented glob (rules/playbook-*.md) counts as present when it matches.
-  [[ -e "$p" ]] || compgen -G "$p" >/dev/null || echo "MISSING_PATH $p"
-done > "$MISSING_PATHS"
-if [[ -s "$MISSING_PATHS" ]]; then
-  while read -r line; do fail "referenced path does not exist: ${line#MISSING_PATH }"; done < "$MISSING_PATHS"
+  [[ -e "$p" ]] || echo "MISSING_PATH $p"
+done > /tmp/playbook-missing-paths.txt
+if [[ -s /tmp/playbook-missing-paths.txt ]]; then
+  while read -r line; do fail "referenced path does not exist: ${line#MISSING_PATH }"; done < /tmp/playbook-missing-paths.txt
 else
   pass "all referenced repository paths exist"
 fi
-rm -f "$MISSING_PATHS"
 
 echo "== installer syntax =="
 bash -n install/install.sh && pass "install.sh parses" || fail "install.sh has a syntax error"
@@ -107,10 +104,27 @@ else
   fail "full install failed"
 fi
 
+echo "== instruction body survives a re-install (awk escape regression) =="
+# `awk -v` applies escape processing; passing the body that way corrupted any
+# backslash on the replace path. Guard the fix with a body containing one.
+CANARY='custom-instructions/global-coding-agent-instructions.md'
+cp "$CANARY" "$TMP_HOME/canary.orig"
+printf '\nRegex `\\d+`, path `C:\\Users\\me`, literal `\\n`, tab `\\t`.\n' >> "$CANARY"
+CLAUDE_CONFIG_DIR="$TMP_HOME/home2" bash install/install.sh --full >/dev/null 2>&1
+CLAUDE_CONFIG_DIR="$TMP_HOME/home2" bash install/install.sh --full >/dev/null 2>&1
+sed -n '/coding-agent-playbook-claude-code:start/,/coding-agent-playbook-claude-code:end/p' \
+  "$TMP_HOME/home2/CLAUDE.md" | sed '1,3d;$d' > "$TMP_HOME/installed-body.md"
+if diff -q "$CANARY" "$TMP_HOME/installed-body.md" >/dev/null; then
+  pass "instruction body is byte-identical after the replace path"
+else
+  fail "instruction body was altered on re-install"
+fi
+cp "$TMP_HOME/canary.orig" "$CANARY"
+
 echo "== installer fails loudly on a missing managed file =="
 CLONE="$TMP_HOME/clone"
 mkdir -p "$CLONE"
-cp -r agents references skills rules commands install "$CLONE/"
+cp -r agents references skills custom-instructions install "$CLONE/"
 rm -rf "$CLONE/skills/senior-code-review"
 if CLAUDE_CONFIG_DIR="$TMP_HOME/home3" bash "$CLONE/install/install.sh" --full >/dev/null 2>&1; then
   fail "installer exited 0 despite a missing managed file"
@@ -121,9 +135,9 @@ fi
 echo "== cross-installer parity (skipped without pwsh) =="
 if command -v pwsh >/dev/null 2>&1; then
   # Both installers must produce a byte-identical Claude Code home. They have
-  # drifted before: PowerShell sorted the manifest case-insensitively while the
-  # shell installer sorts byte-wise, so each rewrote the other's manifest on
-  # every run.
+  # drifted before: PowerShell kept the source file's trailing newline (an extra
+  # blank line before the end marker) and sorted the manifest case-insensitively
+  # while the shell installer sorts byte-wise, so each rewrote the other's files.
   for mode in full support-only; do
     sh_home="$TMP_HOME/parity-sh-$mode"
     ps_home="$TMP_HOME/parity-ps-$mode"
@@ -143,51 +157,6 @@ if command -v pwsh >/dev/null 2>&1; then
   done
 else
   echo "skip  pwsh not installed; CI runs this check"
-fi
-
-echo "== instruction rules =="
-if [[ -d rules ]] && compgen -G 'rules/*.md' >/dev/null; then
-  RULES_LINES=$(cat rules/*.md | wc -l)
-  # Claude Code documents a 200-line target for always-on instruction context;
-  # past that, adherence drops. Everything procedural belongs in a skill.
-  if (( RULES_LINES <= 200 )); then
-    pass "always-on rules total $RULES_LINES lines (target <= 200)"
-  else
-    fail "always-on rules total $RULES_LINES lines, over the 200-line target"
-  fi
-  for f in rules/*.md; do
-    head -1 "$f" | grep -q '^<!--' || fail "$f: missing managed-file header comment"
-  done
-else
-  fail "rules/ is missing or contains no .md files"
-fi
-
-echo "== commands =="
-if [[ -f commands/coordinate-work.md ]]; then
-  grep -q '^description:' commands/coordinate-work.md || fail "commands/coordinate-work.md: missing 'description' frontmatter"
-  pass "command frontmatter checked"
-else
-  fail "commands/coordinate-work.md is missing"
-fi
-
-echo "== plugin manifests =="
-if command -v claude >/dev/null 2>&1; then
-  if claude plugin validate . --strict >/dev/null 2>&1; then
-    pass "marketplace manifest validates (claude plugin validate --strict)"
-  else
-    fail "claude plugin validate --strict failed"
-  fi
-  PLUGIN_TMP="$TMP_HOME/plugincheck"
-  mkdir -p "$PLUGIN_TMP/.claude-plugin"
-  cp .claude-plugin/plugin.json "$PLUGIN_TMP/.claude-plugin/"
-  cp -r agents skills commands "$PLUGIN_TMP/"
-  if claude plugin validate "$PLUGIN_TMP" --strict >/dev/null 2>&1; then
-    pass "plugin manifest and components validate"
-  else
-    fail "plugin manifest validation failed"
-  fi
-else
-  echo "skip  claude CLI not available; CI runs this check"
 fi
 
 echo
