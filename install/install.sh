@@ -74,12 +74,16 @@ run() {
 
 sha256_file() {
   local path="$1"
+  # Hash from stdin rather than by filename argument. GNU coreutils escapes a
+  # filename containing a backslash and prefixes the whole line with `\`, so
+  # `sha256sum "$path"` returned `\e929371...` for any Windows-style
+  # CLAUDE_CONFIG_DIR under Git Bash and every managed-file check failed.
   if command -v sha256sum >/dev/null 2>&1; then
-    sha256sum "$path" | awk '{ print tolower($1) }'
+    sha256sum < "$path" | awk '{ print tolower($1) }'
   elif command -v shasum >/dev/null 2>&1; then
-    shasum -a 256 "$path" | awk '{ print tolower($1) }'
+    shasum -a 256 < "$path" | awk '{ print tolower($1) }'
   elif command -v openssl >/dev/null 2>&1; then
-    openssl dgst -sha256 "$path" | awk '{ print tolower($NF) }'
+    openssl dgst -sha256 < "$path" | awk '{ print tolower($NF) }'
   else
     say "No SHA-256 tool is available; install sha256sum, shasum, or openssl." >&2
     return 1
