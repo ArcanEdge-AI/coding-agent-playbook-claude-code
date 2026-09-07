@@ -29,7 +29,7 @@ Skip it when the work is small, genuinely linear, dominated by one coherent desi
 1. Read the request, the repository state, the applicable `CLAUDE.md`, the validation surfaces, and who already owns what.
 2. **Run `multi-session-coordination` first** if other sessions, branches, worktrees, pull requests, or active-work records might touch this. Treat their work as external constraints; your graph does not control it.
 3. State the goal and the observable success criteria.
-4. Record the model the main session is actually running. Do not assume Opus.
+4. Note the main session's model for provenance only. It does not set the subagent route — each role's model and effort are fixed regardless.
 5. Identify every action that will need explicit approval — audience-facing, destructive, irreversible, sensitive, production-affecting, materially costly, or outside current authority.
 6. Read `references/templates/task-graph.md` before creating a graph artifact.
 7. Read `references/worktrees.md` if any node proposes or already uses an auxiliary checkout.
@@ -47,7 +47,7 @@ Each node gets:
 - a declared output shape and acceptance condition
 - only the upstream nodes whose **accepted output it actually consumes**
 - read scope, and write ownership if it edits
-- the explicit model, and the role whose fixed effort fits
+- the bundled role (which fixes its effort), with that role's model on the dispatch
 - permission mode and tool boundary
 - an exact workspace
 - a verification gate proportionate to the risk
@@ -82,7 +82,7 @@ A node is ready when every declared dependency has an **accepted** output and ev
 - If parallelism is unavailable, run ready nodes sequentially while preserving dependencies.
 - Keep architecture, security judgment, destructive operations, migrations, concurrency design, public API compatibility, and final acceptance with yourself.
 - Use `plan` mode roles for exploration, research, and review; `default` for write-capable roles. Remember `plan`-mode subagents cannot reliably run suites — route execution to `test-triager`.
-- Pass `model` explicitly on every dispatch. Frontmatter fails closed at Haiku and is not the routing decision.
+- Pass the role's model explicitly on every dispatch (`haiku` for lookup roles, `sonnet` for judgment roles) and use a bundled role so its fixed effort applies. The route is the same at every layer, for retries, and for replacements; a forced subagent model or an allowlist substitution is a constraint to report, not a substitute to accept.
 - Start in the shared workspace with an auxiliary-worktree budget of zero. Only you may authorize `isolation: worktree`, and descendants never request it.
 
 Add to the standard assignment:
@@ -93,8 +93,8 @@ Depends on (accepted outputs consumed):
 Declared inputs:
 Output shape and acceptance condition:
 Read scope / write ownership:
-Model (and the main session's model):
-Role and its fixed effort:
+Model: [haiku or sonnet, per role]
+Role (and its fixed effort):
 Permission mode and tools:
 Exact workspace:
 Verification gate:
@@ -119,7 +119,7 @@ Use an independent `senior-reviewer` or `test-triager` node when risk, blast rad
 When a gate fails:
 
 - Keep accepted outputs from unrelated nodes.
-- Rerun the failed node.
+- Rerun the failed node on the same route; do not change the model or raise effort to make it pass.
 - Rerun downstream nodes **only** where the input they consumed actually became invalid.
 - Recompile the affected portion when the failure reveals a missing edge or a wrong decomposition.
 - Stop retrying when the same failure repeats, and report the blocker.

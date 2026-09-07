@@ -43,7 +43,7 @@ For files agents read directly (`agents/`, `references/`, `skills/`, `custom-ins
 - Explain the mechanism when it changes behavior.
 - Use Claude Code's own vocabulary — `Agent`, `subagent_type`, `model`, `effort`, `permissionMode`, `tools`, `disallowedTools`, plan mode — rather than invented terms.
 
-Keep intact: root-session ownership, the main session's model as the ceiling, the two-layer subagent bound, capability boundaries, and the task-local worktree lifecycle.
+Keep intact: root-session ownership, the fixed per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles), the two-layer subagent bound, capability boundaries, the task-local worktree lifecycle, and the engineering-design standard (smallest complete solution, earned abstractions, recorded material debt).
 
 Compare generic policy changes with the companion Codex playbook. Align them, or name the concrete Claude Code capability that requires the difference.
 
@@ -51,7 +51,8 @@ Compare generic policy changes with the companion Codex playbook. Align them, or
 
 Several rules here depend on documented Claude Code behavior. An earlier revision of this playbook had the nesting rule backwards and it propagated to eleven files, so check current documentation before changing guidance that touches:
 
-- model precedence (`CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`)
+- model precedence (per-invocation `model` > frontmatter > `CLAUDE_CODE_SUBAGENT_MODEL` > main model, reversed only by `CLAUDE_CODE_SUBAGENT_MODEL_FORCE`)
+- which models support `effort` (Haiku does not), and that there is no per-invocation effort parameter
 - nesting (enabled by default at three layers; `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` **tightens** it and is not a precondition)
 - what prevents a spawn (`disallowedTools`, not prompt text)
 - effort semantics (a role property that overrides session effort, not an inherited ceiling)
@@ -68,7 +69,7 @@ CI runs the automated checks. Run them locally first with `bash scripts/validate
 - With `pwsh` available, `install.sh` and `install.ps1` produce a byte-identical Claude Code home in both modes. CI checks this; `scripts/validate.sh` skips it when `pwsh` is absent.
 - Markdown fenced code blocks are balanced, and every repository path referenced in Markdown exists.
 - `SKILL.md` files include `name` and `description` frontmatter.
-- `agents/*.md` include `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`; every `model` is `haiku`.
+- `agents/*.md` include `name`, `description`, `model`, `permissionMode`, `tools`, and `disallowedTools`; the two lookup roles use `model: haiku` with no `effort`, and the four judgment roles use `model: sonnet` with `effort: high`.
 - Read-only roles use `permissionMode: plan` and list neither `Edit` nor `Write`; only `local-orchestrator` lists `Agent` in `tools`; the other five list `Agent` in `disallowedTools`; no bundled agent sets `isolation: worktree`.
 - `README.md`'s repository-structure block matches the actual tree.
 - Unix shell scripts remain LF-only.

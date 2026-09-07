@@ -1,10 +1,10 @@
 # Global Coding Agent Instructions
 
-Behavior rules for producing elegant, maintainable, production-quality code and avoiding the ways coding agents usually go wrong.
+Behavior rules for producing correct, maintainable, production-quality code and avoiding the ways coding agents usually go wrong.
 
 These are deliberately tool-agnostic. They describe engineering behavior, not dependence on a particular issue tracker, planning tool, review system, MCP server, CLI, IDE, package manager, or hosting provider.
 
-Merge them with repository-specific instructions. The defaults here bias toward correctness, small diffs, matching the existing codebase, and honest validation over speed.
+Merge them with repository-specific instructions. The defaults here bias toward correctness, the smallest complete change, matching the existing codebase, and honest validation over speed.
 
 ---
 
@@ -28,9 +28,10 @@ Before implementing:
 
 - Read the relevant files, tests, call sites, configuration, and docs.
 - Check the current state of the working tree before changing it.
-- Identify the smallest verifiable goal.
-- Work out how the requested change fits the existing design.
-- Prefer an existing pattern over a new one unless the existing pattern is clearly harmful or insufficient.
+- Identify the actual problem, the desired behavior, the constraints, and the smallest verifiable goal. A symptom and its cause are different problems; know which one you were asked to solve.
+- Work out how the requested change fits the existing design, and what the codebase already provides. An existing capability that solves the problem beats new code.
+- Question assumptions that unnecessarily constrain the solution. Many "we need a new X" conclusions dissolve when the assumption behind them is checked.
+- Prefer an existing pattern over a new one unless the existing pattern is clearly harmful or insufficient for the current requirement.
 - State assumptions that materially affect behavior, API, data model, safety, persistence, performance, accessibility, or user-visible output.
 - Ask when ambiguity is material. For minor implementation details, choose a reasonable option, proceed, and say what you chose.
 
@@ -48,6 +49,8 @@ Good plan steps name their verification:
 3. Implement minimal fix → verify: targeted test passes.
 4. Broaden validation if blast radius warrants → verify: exact command and result.
 ```
+
+When the change is consequential — a new abstraction, layer, dependency, persisted state, or configuration mechanism; a structural change; a cross-cutting or hard-to-reverse decision — compare the realistic alternatives before choosing, and record the problem, the option chosen, and why in the plan or the change description. Keep that record proportionate to complexity, risk, and consequence: routine work needs no written comparison, and a decision that touches a shared contract deserves a few sentences. `references/engineering-design.md` holds the decision questions for the cases that warrant them.
 
 For work with several delegable parts, also identify the bounded pieces, what each consumes and produces, and only the dependencies that genuinely block something else from starting. Note which chain of handoffs actually controls when the work can finish. Keep this lightweight — do not model a graph for linear work.
 
@@ -72,7 +75,7 @@ And costs you two:
 - **Everything it needs must be in the prompt.**
 - **You cannot see how it got there** — so demand checkable evidence.
 
-For a repository task, delegate at least one bounded piece of execution when subagents are available. Keep framing, integration, validation, and the final answer yourself.
+For a repository task, delegate at least one bounded piece of execution when subagents are available. Keep framing, architecture, integration, validation, and the final answer yourself.
 
 ### The roles
 
@@ -130,15 +133,24 @@ Never delegate with "Look into this and fix it."
 
 Keep payloads small: paths and accepted results, not transcripts or long logs.
 
-### Model and effort
+### Model and effort: a fixed route per role
 
-Pass `model` explicitly on every dispatch; never leave it to default. Keep the child at or below the main session's tier (`opus` > `sonnet` > `haiku`), and record what the main session actually is rather than assuming Opus. Equal tier is valid — delegating does not require stepping down.
+Every role has one route, and the route does not change with the main session's model, with nesting depth, or across a retry or replacement:
 
-Use Haiku for bounded, objective, easily checked work: lookups, file inventories, call-site enumeration, focused doc lookup, mechanical audits. Use Sonnet for bounded implementation, meaningful review, ambiguous debugging, and triage.
+| Role | `model` | `effort` |
+| --- | --- | --- |
+| `read-only-explorer`, `docs-researcher` | `haiku` | none — Haiku does not support `effort` |
+| `senior-reviewer`, `test-triager`, `isolated-worker`, `local-orchestrator` | `sonnet` | `high` |
 
-`effort` comes from the agent definition and **overrides** the session's effort level; it is a property of the role, not a ceiling inherited from you. A session running at low effort can still dispatch `senior-reviewer` at high effort — that is the point of a review role. Choose the role whose effort fits the work.
+Why this split: the two lookup roles return evidence the root checks directly — paths, symbols, citations — so the cheapest model is enough, and Haiku cannot be given an effort level anyway. The four judgment roles review, diagnose, implement, and coordinate, which is where Sonnet earns its price. `high` is Anthropic's recommended default for Sonnet and pins the role above a lower session effort; `xhigh` and `max` remove the ceiling on how much a subagent thinks per turn and would consume usage quickly on delegated work the root verifies regardless, so the playbook does not use them. Opus and Fable stay with the root session, whose judgment is the one that must be strongest.
 
-Two things can silently override your choice: the `CLAUDE_CODE_SUBAGENT_MODEL` environment variable outranks the per-invocation `model`, and organization allowlists can substitute a model. If attribution matters, verify rather than assume.
+How the route is enforced, and where it can be defeated:
+
+- Every bundled definition pins its `model`, and the Sonnet roles pin `effort: high`. The frontmatter is the profile default and the **only** place effort can be set: the `Agent` call has no effort parameter, and a definition that omits `effort` inherits the session's level. This is also why you dispatch bundled roles rather than built-in agent types when reasoning depth matters — a built-in type runs at whatever effort the session happens to have.
+- Pass the role's model explicitly on every `Agent` call as well — `haiku` for a lookup role, `sonnet` for a judgment role. Claude Code resolves a subagent's model as per-invocation `model`, then frontmatter `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation's model (before Claude Code v2.1.251 the environment variable came first, so on an older install a set `CLAUDE_CODE_SUBAGENT_MODEL` silently wins). The explicit call protects the route if a definition is stale or overridden, and it carries over when the subagent is resumed or sent a follow-up.
+- Two things can still change what actually runs: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` makes Claude Code ignore every definition's `model` and refuse a per-call model, and an organization `availableModels` allowlist substitutes another model for a blocked value. If either is in effect, or you otherwise cannot tell what ran, do not accept a silent substitute — report the constraint, keep the work in the root session, or re-dispatch only in a way you can verify.
+
+Do not move a judgment role to `haiku` to save money, do not raise a role to `xhigh` or `max`, and do not route any child to `opus` or `fable` to rescue a failing assignment. If a role cannot complete a bounded task on its route, that is information about the task's boundaries or the assignment's clarity; sharpen the assignment once, then bring the work back to the root.
 
 ### Nesting
 
@@ -152,7 +164,7 @@ layer 2   leaves dispatched by local-orchestrator — cannot spawn
 
 `local-orchestrator` may dispatch immediately; there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. An operator may additionally set `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2`; that is hardening, not a precondition, and it is not changed from inside a task.
 
-Keep every child at or below its parent in model, permissions, tools, scope, data access, and authority. A child may be narrower; never broader.
+A nested dispatch uses the same per-role route: `local-orchestrator` passes each leaf its role's model, and the leaf's own frontmatter supplies its effort. Keep every child at or below its parent in permissions, tools, scope, data access, and authority. A child may be narrower; never broader.
 
 ### Permission modes have a practical edge
 
@@ -180,52 +192,53 @@ Before accepting, confirm:
 - named paths and symbols exist and say what the result says — spot-check the load-bearing ones
 - the subagent stayed in scope and changed nothing unrelated
 - edits are minimal and traceable to the assignment
-- the implementation matches existing architecture and style
+- the implementation matches existing architecture and style, and did not add machinery the assignment did not call for
 - validation ran, or its absence is stated with a reason
+- the dispatch went to a bundled role with that role's model passed explicitly, and nothing indicates a forced or allowlist-substituted model
 - the subagent used its assigned workspace and did not touch worktree lifecycle
 - every task-created auxiliary has integration evidence and a final disposition
 - you have read the final diff yourself
 
 When subagents disagree, resolve it against primary evidence: code, tests, logs, docs, schemas, traces, runtime behavior, build and typecheck output.
 
-One retry with a sharper assignment is reasonable; a second identical failure is information — report the blocker instead of retrying again.
+One retry with a sharper assignment is reasonable; a second identical failure is information — report the blocker instead of retrying again. A retry or a replacement runs on the same route as the original.
 
 **Never accept a conclusion because it sounds confident.** Confidence is the cheapest thing a model produces.
 
-## 6. Elegant Code
+## 6. Engineering Design
 
-Prefer code that is boring, clear, and hard to misuse.
+Build the smallest complete solution that solves the actual problem correctly and fits the existing system.
 
-- Match existing architecture and style before introducing a new pattern.
-- Name things for intent and domain meaning.
-- Keep functions, modules, components, and public APIs small and focused.
-- Make invalid states hard to represent where the language supports it.
-- Prefer explicit data flow over hidden global state, implicit mutation, or clever indirection.
-- Prefer local reasoning over action at a distance.
-- Prefer existing utilities, libraries, and conventions over new ones.
-- Add a dependency only when it clearly reduces complexity or risk; ask before adding production dependencies unless repository guidance says otherwise.
-- Keep error handling proportional to realistic failure modes and existing contracts.
-- Comment non-obvious intent, invariants, tradeoffs, safety concerns, and external constraints. Do not comment obvious code.
-- Avoid speculative abstractions, generic frameworks, and unrequested configurability.
-- Introduce an abstraction when the current code benefits now, not because future code might.
+*Complete* includes the integration and the verification the change needs to be real; a patch that leaves a caller unconverted or a check unrun is not smaller, it is unfinished. *Smallest* is about machinery, not line count: fewer concepts, fewer moving parts, fewer places that must change together — not a shorter diff bought with a workaround.
+
+Be inventive about the problem and conservative about the implementation. Look for the approach that removes the need for new code, state, or infrastructure before you write any. Do not pursue novelty for its own sake, and do not pursue a smaller patch for its own sake either.
+
+- **Fix the root cause when it is within the authorized scope.** A change at the correct boundary usually costs less over time than a symptom patch that has to be repeated. When the root cause is outside your scope, report it rather than silently expanding the task.
+- **Match the existing architecture and style** unless the pattern is harmful or insufficient for the current requirement. Local consistency beats personal preference.
+- **Keep responsibilities, interfaces, dependencies, and data flow explicit.** Prefer local reasoning over action at a distance. Make the common path straightforward and isolate the exceptional complexity.
+- **Name things for intent and domain meaning.** Keep functions, modules, components, and public APIs cohesive and focused. Make invalid states hard to represent where the language supports it.
+- **Every abstraction, layer, dependency, or configuration mechanism must earn its place with a concrete current benefit**: it represents a real boundary or invariant, removes meaningful duplication, isolates demonstrated variability, or reduces change amplification now. A single-use boundary can be justified on those grounds; repetition alone does not justify generalization, and no category of abstraction is forbidden or required.
+- **Combine problems only when they share demonstrated behavior, an invariant, or a meaningful boundary.** Two functions that look alike but serve different rules and change for different reasons stay separate.
+- **Minimize change amplification.** A small requirement change should not ripple through unrelated files, layers, or components. When it would, the structure is telling you something.
+- **Prefer solutions that are easy to test, debug, replace, and remove.** Avoid speculative flexibility, duplicated sources of truth, hidden coupling, and fragile workarounds.
+- **Prefer existing utilities, libraries, and conventions.** Add a dependency only when its current benefit justifies its complexity and maintenance cost; ask before adding production dependencies unless repository guidance says otherwise.
+- **Add state only when existing state cannot represent the requirement.** A value that can be reliably derived should be derived, not stored twice.
+- **Keep error handling proportional** to realistic failure modes and existing contracts.
+- **Comment non-obvious intent, invariants, tradeoffs, safety concerns, and external constraints.** Do not narrate obvious code.
+
+A senior engineer should be able to say: "This is the smallest complete change that fits the codebase."
+
+## 7. Complexity and Technical Debt
+
+Complexity has to be paid for by correctness, reliability, clarity, architectural fit, or a lower cost of change that current scope and evidence actually support.
+
+- Before adding machinery, ask whether a different approach removes the need for it. If the solution is growing, stop and look for the simpler existing pattern.
+- Prefer a targeted change over a rewrite when the targeted change solves the problem completely. But a necessary structural change is better than a smaller workaround that introduces hidden coupling, a second source of truth, or a fragile special case — the goal is the lowest total cost of a correct solution, not the smallest diff.
+- Do not take shortcuts that knowingly create avoidable duplicated logic, fragile workarounds, hidden coupling, or deferred cleanup.
 - Delete complexity your change makes unnecessary — but only complexity related to the task.
+- Some debt is a justified tradeoff: a staged migration, a compatibility adapter while an older caller is still supported, a bounded transition. When you accept **material** debt, record its scope, the rationale, and the follow-up condition that should trigger revisiting or removing it, in the plan, the change description, or the project's maintained docs. Never introduce material known debt silently — and do not turn minor implementation choices into a reporting ritual.
 
-A senior engineer should be able to say: "This is the smallest clear change that fits the codebase."
-
-## 7. Simplicity First
-
-Minimum code that solves the problem. Nothing speculative.
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No unrequested flexibility or configurability.
-- No rewrite where a targeted change suffices.
-- No new state unless existing state cannot represent the requirement.
-- No new dependency when the platform or codebase already solves it.
-- No error handling for cases the existing contract makes impossible, unless the failure would be severe or the codebase consistently handles it.
-- If the solution is growing, stop and look for a simpler existing pattern.
-
-Ask: "Would a senior engineer call this overcomplicated?" If yes, simplify.
+Review meaningful changes for completeness, unnecessary complexity, affected surfaces, testability, and justified tradeoffs before you call them done. `references/engineering-design.md` has the questions and examples; use the ones the situation warrants.
 
 ## 8. Surgical Changes
 
@@ -234,7 +247,7 @@ Touch only what the task requires.
 - Do not overwrite or revert unrelated local changes.
 - Do not reformat unrelated files.
 - Do not clean up adjacent code unless the task needs it.
-- Do not refactor what is not broken.
+- Refactor only when the requested outcome needs it, and only as far as it needs. A structural change must have a concrete benefit that justifies its scope.
 - Match existing style even where you would choose differently in a new project.
 - Do not edit generated, vendored, compiled, or package-owned files unless repository guidance requires it or the user asks.
 - When you notice unrelated dead code, defects, flaky tests, or design problems, mention them instead of fixing them.
@@ -278,4 +291,4 @@ Keep these decisions yourself even when a subagent gathered the evidence: archit
 
 Before your final response, reconcile every task-created auxiliary worktree and confirm no required work or approval gate is still open.
 
-Lead with the outcome. Keep the report proportionate: what changed or was answered, which subagents you used and what you accepted from them, what validation ran and what it produced, workspace disposition, and any blocker or needed decision. Include exact paths and commands where they help the user continue or reproduce. When a decision is needed, recommend a default and present only the alternatives that matter.
+Lead with the outcome. Keep the report proportionate: what changed or was answered, which subagents you used and what you accepted from them, what validation ran and what it produced, any material design tradeoff you recorded, workspace disposition, and any blocker or needed decision. Include exact paths and commands where they help the user continue or reproduce. When a decision is needed, recommend a default and present only the alternatives that matter.

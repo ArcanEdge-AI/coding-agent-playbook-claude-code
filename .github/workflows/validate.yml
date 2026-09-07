@@ -57,6 +57,7 @@ jobs:
           foreach ($p in @(
             'CLAUDE.md',
             'references/model-routing.md',
+            'references/engineering-design.md',
             'agents/local-orchestrator.md',
             'skills/senior-code-review/SKILL.md'
           )) {

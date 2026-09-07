@@ -140,7 +140,7 @@ The philosophy is shared across both: the root agent acts as the senior engineer
 AI coding agents are powerful, but they often fail in predictable ways:
 
 - They start coding before understanding the codebase.
-- They over-engineer simple requests.
+- They over-engineer simple requests, or patch symptoms and call the smaller diff simpler.
 - They refactor unrelated code.
 - They trust editor diagnostics over real builds.
 - They claim tests passed when they did not run them.
@@ -166,7 +166,7 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 | Install scripts | `install/` | Manual installers for Unix-like shells and PowerShell. |
 | Global instructions | `custom-instructions/` | Tool-agnostic behavior rules for elegant, maintainable code. Paste into your global `CLAUDE.md`. |
 | Prompts | `claude-prompts/` | Setup and active-project coordination prompts. |
-| Reference docs | `references/` | Claude model and capability routing; finite subagent delegation; task-local worktrees; multi-session coordination; and reusable templates. |
+| Reference docs | `references/` | The fixed subagent route and capability routing; finite subagent delegation; an engineering-design decision aid; task-local worktrees; multi-session coordination; and reusable templates. |
 | Skills | `skills/` | Reusable workflows for task-graph, subagent, and worktree orchestration, session coordination, document routing, and senior review. |
 | Custom agents | `agents/` | Claude Code definitions for a bounded local orchestrator, direct workers, and non-spawning execution leaves. |
 | Repository guidance | `CLAUDE.md` | Instructions for maintaining this public playbook repository. |
@@ -215,37 +215,43 @@ Subagents share the current workspace by default. The auxiliary-worktree budget 
 
 ## Subagent Model
 
-Subagents are focused engineering assistants, not autonomous owners. Definitions live in `agents/` and install to the Claude Code home agents directory; repositories can override them under `.claude/agents/`. Each is Markdown with YAML frontmatter pinning a fail-closed model, a role effort level, `permissionMode`, `tools`, and `disallowedTools`.
+Subagents are focused engineering assistants, not autonomous owners. Definitions live in `agents/` and install to the Claude Code home agents directory; repositories can override them under `.claude/agents/`. Each is Markdown with YAML frontmatter pinning the supporting model, the role's effort, `permissionMode`, `tools`, and `disallowedTools`.
 
-| Subagent | Fail-closed model | Normal explicit model | Effort | Permission | Tools | Best for |
-| --- | --- | --- | --- | --- | --- | --- |
-| `read-only-explorer` | haiku | haiku | low | plan | Read, Grep, Glob | Mapping call paths, call sites, conventions, and insertion points. |
-| `docs-researcher` | haiku | haiku | low | plan | Read, Grep, Glob, WebFetch, WebSearch | Verifying library, API, or platform behavior against the installed version. |
-| `test-triager` | haiku | sonnet | medium | default | Read, Grep, Glob, Bash, Edit | Reproducing a failure and proving its root cause. Runs suites. |
-| `isolated-worker` | haiku | sonnet | medium | default | Read, Grep, Glob, Edit, Write, Bash | Implementing a bounded change whose design is settled. |
-| `senior-reviewer` | haiku | sonnet | high | plan | Read, Grep, Glob, Bash | Reviewing a real artifact for defects and risk before acceptance. |
-| `local-orchestrator` | haiku | sonnet | high | default | Agent + read/write/web | One slice that genuinely fans out into independent parts. |
+| Subagent | Model | Effort | Permission | Tools | Best for |
+| --- | --- | --- | --- | --- | --- |
+| `read-only-explorer` | haiku | none | plan | Read, Grep, Glob | Mapping call paths, call sites, conventions, and insertion points. |
+| `docs-researcher` | haiku | none | plan | Read, Grep, Glob, WebFetch, WebSearch | Verifying library, API, or platform behavior against the installed version. |
+| `test-triager` | sonnet | high | default | Read, Grep, Glob, Bash, Edit | Reproducing a failure and proving its root cause. Runs suites. |
+| `isolated-worker` | sonnet | high | default | Read, Grep, Glob, Edit, Write, Bash | Implementing a bounded change whose design is settled. |
+| `senior-reviewer` | sonnet | high | plan | Read, Grep, Glob, Bash | Reviewing a real artifact for defects and risk before acceptance. |
+| `local-orchestrator` | sonnet | high | default | Agent + read/write/web | One slice that genuinely fans out into independent parts. |
 
-### Why every model is `haiku`
+### A fixed route per role
 
-Claude Code resolves a subagent's model through a precedence chain, and the losing links are silent:
+The two lookup roles run on Haiku; the four judgment roles run on Sonnet at `high` effort. The route belongs to the role: it is the same for a leaf a `local-orchestrator` dispatches, for a retry, and for a replacement — and it does not follow the main session's model. The user picks the root model; the supporting routes are independent of that choice.
+
+Why the split:
+
+- **Haiku for lookup.** `read-only-explorer` and `docs-researcher` return paths, symbols, and citations the root checks directly, so the cheapest model is enough. Haiku does not support the `effort` field, so those two definitions set none.
+- **Sonnet at `high` for judgment.** Review, diagnosis, implementation, and coordination are where a weak model produces confident wrong answers that cost more to catch than the tokens saved. `high` is Anthropic's recommended default for Sonnet and pins the role above a lower session effort. `xhigh` and `max` are deliberately not used: they remove the per-turn thinking ceiling and consume usage quickly on work the root verifies anyway.
+- **Opus and Fable** stay with the root session, whose judgment must be strongest.
+
+How Claude Code resolves a subagent's model (v2.1.251 and later), strongest first:
 
 ```text
-CLAUDE_CODE_SUBAGENT_MODEL   ← outranks everything, including the call
-per-invocation `model`       ← what this playbook uses
-frontmatter `model`          ← the fallback
-inherit / omitted            ← the main conversation's model
+per-invocation `model`        ← the role's model, passed on every call
+frontmatter `model`           ← pinned per role in every definition
+CLAUDE_CODE_SUBAGENT_MODEL    ← only reached if neither of the above names a model
+main conversation's model     ← last resort
 ```
 
-Pinning `haiku` in frontmatter means a dispatch that forgets to pass a model fails **closed** — cheap and weak — instead of quietly running everything at the main session's tier. It is a safety net, not the routing decision. The caller passes the model it actually wants on every `Agent` call.
+Two things can still change what runs: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` makes Claude Code ignore every definition's model and refuse the per-call parameter, and an organization `availableModels` allowlist can substitute. When either applies, the playbook reports the constraint and keeps the work in the root session rather than accepting a substitute.
 
-Keep each child at or below the main session's tier (`opus` > `sonnet` > `haiku`), and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating deeper does not require stepping down.
+### Effort can only be set in the definition
 
-### Effort is a role property, not an inherited ceiling
+`effort` is set in frontmatter and, per the Claude Code subagent contract, **overrides the session effort level**. There is no per-invocation effort argument, and a definition that omits it inherits the session's level — so dispatching a bundled Sonnet role is what makes `high` the effective level, and dispatching a built-in agent type instead silently drops back to session effort.
 
-`effort` is set in frontmatter and, per the Claude Code subagent contract, **overrides the session effort level**. There is no per-invocation effort argument, so you choose effort by choosing the role.
-
-This matters: a session running at low effort can still dispatch `senior-reviewer` at high effort. That is the point of a review role — the review deserves more thought than the errand that triggered it. Treating effort as a ceiling inherited from the caller would make the review and orchestration roles unreachable from ordinary sessions, which is not how the field works.
+Effort is a property of the role, not a ceiling inherited from the caller. A session running at low effort still gets `senior-reviewer` at `high`; that is the point of a review role.
 
 ### Plan mode cannot run your test suite
 
@@ -291,7 +297,7 @@ references/subagents.md
 skills/subagent-orchestration/SKILL.md
 ```
 
-A good assignment names the role and explicit model, the goal as a verifiable outcome, the context, the scope and non-goals, write ownership for anything that edits, the exact workspace, the required evidence, the acceptance condition, and the stop conditions.
+A good assignment names the role and its model, the goal as a verifiable outcome, the context, the scope and non-goals, write ownership for anything that edits, the exact workspace, the required evidence, the acceptance condition, and the stop conditions.
 
 ---
 
@@ -476,6 +482,7 @@ references/worktrees.md
 │   └── install.sh
 ├── references/
 │   ├── README.md
+│   ├── engineering-design.md
 │   ├── model-routing.md
 │   ├── multi-session-coordination.md
 │   ├── reference-doc-routing.md
@@ -558,7 +565,7 @@ Tax logic turns out to live behind a third-party service, or the call chain
 depends on runtime configuration you cannot resolve by reading.
 ```
 
-Dispatched with an explicit `model` — never left to default — and at or below the main session's tier.
+Dispatched with `model: haiku` on the call, the route for a lookup role. A judgment role would be dispatched with `model: sonnet`, and its definition supplies `effort: high`.
 
 The root session still decides the design, accepts or rejects the recommendation, and reviews the final diff itself.
 
@@ -571,8 +578,9 @@ The root session still decides the design, accepts or rejects the recommendation
 2. Let the installer configure global instructions, references, skills, and subagents.
 3. Add repository-specific CLAUDE.md guidance to each project.
 4. Let the root session frame the task, choose what to delegate, and coordinate.
-5. Pass an explicit model on every dispatch, at or below the main session's tier.
-   Choose the role whose effort fits the work — effort comes from the definition.
+5. Pass the role's model on every dispatch — haiku for lookup roles, sonnet for
+   judgment roles — and use the bundled roles so their fixed effort applies.
+   The route never follows the root model.
 6. Run independent subagents in parallel; sequence only for real dependencies,
    and confirm write ownership is disjoint before running writers concurrently.
 7. Keep the auxiliary-worktree budget at zero unless a real isolation need is

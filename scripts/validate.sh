@@ -12,6 +12,8 @@ fail() { FAILURES=$((FAILURES + 1)); printf 'FAIL  %s\n' "$*"; }
 READ_ONLY_AGENTS="read-only-explorer docs-researcher senior-reviewer"
 WRITE_AGENTS="test-triager isolated-worker local-orchestrator"
 ALL_AGENTS="$READ_ONLY_AGENTS $WRITE_AGENTS"
+# Lookup roles run on Haiku, which does not support effort; judgment roles run on Sonnet at high.
+HAIKU_AGENTS="read-only-explorer docs-researcher"
 
 echo "== agent definitions =="
 for name in $ALL_AGENTS; do
@@ -21,12 +23,18 @@ for name in $ALL_AGENTS; do
     continue
   fi
 
-  for key in name description model effort permissionMode tools disallowedTools; do
+  for key in name description model permissionMode tools disallowedTools; do
     grep -q "^$key:" "$f" || fail "$f: missing '$key' frontmatter"
   done
 
   grep -Eq "^name:[[:space:]]*$name[[:space:]]*$" "$f" || fail "$f: name does not match filename"
-  grep -Eq '^model:[[:space:]]*haiku[[:space:]]*$' "$f" || fail "$f: model must be the fail-closed 'haiku' alias"
+  if [[ " $HAIKU_AGENTS " == *" $name "* ]]; then
+    grep -Eq '^model:[[:space:]]*haiku[[:space:]]*$' "$f" || fail "$f: lookup role must use model: haiku"
+    grep -q '^effort:' "$f" && fail "$f: Haiku does not support effort; remove the effort field"
+  else
+    grep -Eq '^model:[[:space:]]*sonnet[[:space:]]*$' "$f" || fail "$f: judgment role must use model: sonnet"
+    grep -Eq '^effort:[[:space:]]*high[[:space:]]*$' "$f" || fail "$f: judgment role must use effort: high"
+  fi
   grep -Eq '^isolation:[[:space:]]*worktree' "$f" && fail "$f: must not set isolation: worktree"
 
   if [[ " $READ_ONLY_AGENTS " == *" $name "* ]]; then

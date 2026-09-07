@@ -25,6 +25,7 @@ $CLAUDE_HOME/
     README.md
     model-routing.md
     subagents.md
+    engineering-design.md
     worktrees.md
     multi-session-coordination.md
     reference-doc-routing.md
@@ -156,7 +157,7 @@ Files that must exist:
 
 - `$CLAUDE_HOME/CLAUDE.md` — present, or intentionally left as a pointer-only file
 - `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` — lists every current managed support file exactly once
-- `$CLAUDE_HOME/references/` — `model-routing.md`, `subagents.md`, `worktrees.md`, `multi-session-coordination.md`, `reference-doc-routing.md`
+- `$CLAUDE_HOME/references/` — `model-routing.md`, `subagents.md`, `engineering-design.md`, `worktrees.md`, `multi-session-coordination.md`, `reference-doc-routing.md`
 - `$CLAUDE_HOME/references/templates/` — `active-work-record.md`, `task-graph.md`, `worktree-manifest.md`
 - `$CLAUDE_HOME/agents/` — `local-orchestrator.md`, `read-only-explorer.md`, `senior-reviewer.md`, `docs-researcher.md`, `test-triager.md`, `isolated-worker.md`
 - `$CLAUDE_HOME/skills/` — `subagent-orchestration`, `task-graph-orchestration`, `worktree-lifecycle`, `multi-session-coordination`, `reference-doc-routing`, `senior-code-review`, each with `SKILL.md`
@@ -164,8 +165,8 @@ Files that must exist:
 Frontmatter and policy:
 
 - Each `SKILL.md` has `name` and `description`.
-- Each `agents/*.md` has `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`.
-- Every managed agent `model` is the fail-closed `haiku` alias, so a dispatch that omits the model fails closed rather than inheriting the main session's tier.
+- Each `agents/*.md` has `name`, `description`, `model`, `permissionMode`, `tools`, and `disallowedTools`.
+- `read-only-explorer` and `docs-researcher` pin `model: haiku` with no `effort` field (Haiku does not support effort). `senior-reviewer`, `test-triager`, `isolated-worker`, and `local-orchestrator` pin `model: sonnet` and `effort: high`. Effort can only be set in the definition, so this is what makes `high` the effective level for delegated judgment work.
 - `read-only-explorer`, `docs-researcher`, and `senior-reviewer` use `permissionMode: plan` and list neither `Edit` nor `Write`.
 - `test-triager`, `isolated-worker`, and `local-orchestrator` use `permissionMode: default`. No bundled role uses `acceptEdits`, `auto`, `dontAsk`, or `bypassPermissions`.
 - Only `local-orchestrator.md` lists `Agent` in `tools`. The other five list `Agent` in `disallowedTools`, which is what actually prevents a third nesting layer — Claude Code allows nesting by default, so prompt text alone does not stop a spawn.
@@ -174,9 +175,10 @@ Frontmatter and policy:
 
 Content:
 
-- Routing guidance states that the main session's actual model is the ceiling, that equal-tier children are valid, that descendants do not upgrade themselves, that only the root routes a replacement, and that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation model.
+- Routing guidance states the per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles) and that it holds regardless of the main session's model; that the route also applies to nested dispatches, retries, and replacements; that Claude Code resolves the model as per-invocation `model`, then frontmatter, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the main model; and that `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` and organization allowlists can override that and must be reported rather than silently accepted.
 - Routing guidance states that nesting is enabled by default at three layers, that this playbook caps at two, and that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition.
-- Routing guidance states that `effort` is a role property that overrides session effort, not a ceiling inherited from the caller.
+- Routing guidance states that `effort` is a role property that overrides session effort, not a ceiling inherited from the caller, that there is no per-invocation effort parameter, and that Haiku does not support `effort`.
+- `references/engineering-design.md` is installed and the global instructions point to it for non-trivial design decisions.
 - Worktree guidance states that an isolated subagent branches from the repository default branch rather than the parent's `HEAD` unless `worktree.baseRef` is `"head"`.
 - No non-Claude configuration paths, subagent schemas, or command vocabulary were introduced.
 

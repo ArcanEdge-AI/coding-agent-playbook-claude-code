@@ -1,8 +1,8 @@
 ---
 name: test-triager
 description: Diagnoses failing tests, builds, type errors, and CI failures — reproduces the failure, finds the first meaningful error, and identifies the root cause with evidence. Use when something is failing and the cause is not yet known. Once the cause is established and only the fix remains, hand that to isolated-worker rather than expanding this role.
-model: haiku
-effort: medium
+model: sonnet
+effort: high
 permissionMode: default
 tools: Read, Grep, Glob, Bash, Edit
 disallowedTools: Agent

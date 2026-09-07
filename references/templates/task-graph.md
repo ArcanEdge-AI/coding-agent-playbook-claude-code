@@ -8,7 +8,7 @@ This is a plan you maintain by hand. It is not a scheduler, and nothing here is 
 
 - **Goal**: [one concrete outcome]
 - **Owner**: [the root session]
-- **Main session model**: [what the user actually selected — do not assume Opus]
+- **Main session model**: [what the user actually selected — recorded for provenance; it does not change the subagent route]
 - **Repository and worktree**: [verified current context]
 - **Applicable instructions**: [`CLAUDE.md` paths or other sources]
 - **Status**: [Proposed / Active / Blocked / Complete]
@@ -31,14 +31,14 @@ This is a plan you maintain by hand. It is not a scheduler, and nothing here is 
 
 | ID | Work | Executor | Inputs | Output and acceptance condition | Depends on | Reads | Writes | Model | Role / effort | Mode / tools | Workspace | Verification gate | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| N0 | [bounded work] | [named role, or root] | [authoritative inputs] | [artifact + how you will accept it] | None | [read scope] | None | [explicit model] | [role / its fixed effort] | [permissionMode / tools] | [shared workspace, or W#] | [evidence required] | Ready |
+| N0 | [bounded work] | [named role, or root] | [authoritative inputs] | [artifact + how you will accept it] | None | [read scope] | None | [haiku or sonnet, per role] | [role / its fixed effort] | [permissionMode / tools] | [shared workspace, or W#] | [evidence required] | Ready |
 
 Node states: `Proposed`, `Ready`, `Running`, `Complete`, `Failed`, `Blocked`, `Superseded`.
 
 Notes on the routing columns:
 
-- **Model** is passed explicitly on every dispatch, at or below the main session's tier (`opus` > `sonnet` > `haiku`). Equal tier is valid. Frontmatter pins `haiku` so an omitted model fails closed.
-- **Effort** comes from the role definition and overrides session effort. It is a property of the role, not a ceiling inherited from the caller — choose the role whose effort fits the work.
+- **Model** is the role's model, passed explicitly on every dispatch: `haiku` for `read-only-explorer` and `docs-researcher`, `sonnet` for the four judgment roles. It holds at every layer and for every retry and replacement, and does not follow the main session's model. A forced subagent model (`CLAUDE_CODE_SUBAGENT_MODEL_FORCE`) or an allowlist substitution is a constraint to record and report, not a substitute to accept silently.
+- **Effort** is fixed in the definition: `high` on the four Sonnet roles, none on the two Haiku roles (Haiku does not support it). There is no per-dispatch effort parameter, which is why nodes use bundled roles rather than built-in agent types. It overrides session effort and is not a ceiling inherited from the caller.
 - **Mode / tools** must be no broader than the caller's. Remember that `plan`-mode roles cannot reliably run test suites; route execution to `test-triager`.
 
 ## Dependency Edges
@@ -74,13 +74,13 @@ Dispatch only these, and only while there is runtime, safety, permission, and ow
 
 Fill this in only where a node uses `local-orchestrator`.
 
-| Parent node | Leaves dispatched | Write ownership (must be disjoint) | Inherited boundary | Child models | Returned |
+| Parent node | Leaves dispatched | Write ownership (must be disjoint) | Inherited boundary | Child route | Returned |
 | --- | --- | --- | --- | --- | --- |
-| N1 | [leaf roles and subtasks] | [paths or state; no overlap] | [inputs, data, scope, permissions, tools, workspace, authority] | [explicit models, at or below N1's] | [artifacts, evidence, blockers] |
+| N1 | [leaf roles and subtasks] | [paths or state; no overlap] | [inputs, data, scope, permissions, tools, workspace, authority] | per role: haiku, or sonnet / high (same as every layer) | [artifacts, evidence, blockers] |
 
 Claude Code allows nesting three layers below the main conversation by default; this playbook uses two. `local-orchestrator` may dispatch immediately — there is no flag to verify. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`.
 
-Retries reuse the node ID and workspace. A second identical failure is information — report the blocker rather than retrying again. Only the root introduces a replacement node, at any tier within the main session's ceiling.
+Retries reuse the node ID, workspace, and route. A second identical failure is information — report the blocker rather than retrying again. Only the root introduces a replacement node, and it runs on the same per-role route; a task that route cannot finish needs a sharper assignment or the root's own judgment, not a larger model or more effort.
 
 ## Worktree Lifecycle
 
@@ -135,7 +135,7 @@ Give a verifier the source artifacts and acceptance criteria, not the producer's
 
 - The root owns topology, ready-set transitions, integration, authority-bound actions, and final acceptance.
 - `local-orchestrator` manages only its own subtree and never changes root topology or advances root-ready work.
-- Every child stays at or below its parent in model, permissions, tools, scope, data access, workspace, and authority. Pass the model explicitly; reject a dispatch whose effective model you cannot determine.
+- Every child stays at or below its parent in permissions, tools, scope, data access, workspace, and authority. Model and effort are fixed per role at every layer; pass the model explicitly, and treat a dispatch whose effective model you cannot determine as a constraint to report.
 - A dependency is real only when the downstream node consumes an accepted upstream artifact or decision.
 - Keep completed outputs unless their inputs actually became invalid.
 - Update the ready set after every accepted, failed, blocked, or superseded node.

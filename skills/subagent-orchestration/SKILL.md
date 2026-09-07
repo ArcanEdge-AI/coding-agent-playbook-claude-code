@@ -37,13 +37,13 @@ One consequence of permission modes worth remembering: `senior-reviewer` runs in
 
 ## 3. Route the model
 
-Pass `model` explicitly on every dispatch. Never leave it to default.
+Each role has a fixed route. `read-only-explorer` and `docs-researcher` run on `haiku`; `senior-reviewer`, `test-triager`, `isolated-worker`, and `local-orchestrator` run on `sonnet` at `effort: high`. Pass the role's model on every dispatch; the bundled role's frontmatter supplies its effort. The route is the same for a leaf a `local-orchestrator` dispatches, for a retry, and for a replacement, and it does not change with the main session's model.
 
-Keep the child at or below the main session's tier (`opus` > `sonnet` > `haiku`), and record what the main session actually is — do not assume Opus. Equal tier is valid; delegating does not require stepping down.
+Why: lookup roles return evidence you check directly, so the cheapest model is enough, and Haiku does not support `effort` anyway. Judgment roles are where a weak model produces confident wrong answers. `high` is Sonnet's recommended default; `xhigh` and `max` are not used because they remove the per-turn thinking ceiling and burn usage on work you verify regardless. Opus and Fable stay with the root session.
 
-Effort comes from the role definition and overrides session effort. Choose the role whose effort fits the work; a `low`-effort session can still dispatch `senior-reviewer` at `high`.
+Effort cannot be passed on the `Agent` call — only a definition pins it, and it overrides session effort. So dispatch bundled roles, not built-in agent types, when reasoning depth matters; a `low`-effort session still gets `senior-reviewer` at `high`.
 
-Be aware that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the `model` you pass, and organization allowlists can substitute. If a result must be attributable to a specific model, verify rather than assume.
+Two things can silently change what actually runs: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores every definition's model and blocks the per-call model (and on Claude Code before v2.1.251, a plain `CLAUDE_CODE_SUBAGENT_MODEL` already outranked the call), and an organization allowlist can substitute. If either is in effect or you cannot tell what ran, report it and keep the work yourself rather than accepting a substituted model as the role's. Never route a child to `opus` or `fable`, and never raise effort, to rescue a failing assignment.
 
 ## 4. Write the assignment
 
@@ -112,6 +112,7 @@ A returned result is a claim.
 - Do the named paths and symbols exist and say what the result says? Spot-check the load-bearing ones.
 - Did anything outside scope change?
 - Was validation actually run, or is its absence explained?
+- Did the child add machinery the assignment did not call for — an abstraction, state, configurability, or a workaround where a boundary fix was in scope?
 - Have you read the final diff yourself?
 
 When two subagents disagree, resolve it against primary evidence — code, tests, schemas, logs, runtime behavior. Do not prefer the more confident one.

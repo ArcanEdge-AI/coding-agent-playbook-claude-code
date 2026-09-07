@@ -528,8 +528,9 @@ else
 Supporting global reference documents live under the Claude Code home references directory:
 
 - `references/README.md` — map of the available global reference docs
-- `references/model-routing.md` — how Claude Code resolves a subagent'\''s model, what overrides what, effort semantics, permission modes, tool boundaries, and nesting depth
+- `references/model-routing.md` — the fixed per-role route (Haiku for lookup roles, Sonnet at high for judgment roles), how Claude Code resolves a subagent model and what overrides it, effort semantics, permission modes, tool boundaries, and nesting depth
 - `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
+- `references/engineering-design.md` — decision questions for non-trivial design choices, when an abstraction has earned its place, and how to record material technical debt
 - `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
 - `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
 - `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
@@ -555,9 +556,9 @@ Custom Claude Code subagents live under the Claude Code home agents directory:
 
 Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
 
-Pass an explicit `model` on every `Agent` dispatch; never leave it to default. Keep each child at or below the main session'\''s tier (`opus` > `sonnet` > `haiku`) and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating does not require stepping down. Bundled definitions pin `model: haiku` so an omitted-model dispatch fails closed. Note that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`, and organization allowlists can substitute; verify rather than assume when attribution matters. `effort` comes from the agent definition and overrides session effort — it is a property of the role, not a ceiling inherited from the caller.
+Each bundled subagent has a fixed route that does not follow the model selected for the main session: `read-only-explorer` and `docs-researcher` run on `haiku` (Haiku does not support `effort`, so those definitions set none); `senior-reviewer`, `test-triager`, `isolated-worker`, and `local-orchestrator` run on `sonnet` at `effort: high`. Pass the role model explicitly on every `Agent` dispatch and use the bundled roles; there is no per-call effort parameter, and a definition that omits effort inherits the session level. The same route applies to nested dispatches, retries, and replacements. Claude Code resolves a subagent model as the per-invocation `model`, then the definition `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation model (before Claude Code v2.1.251 the environment variable came first); `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` overrides both the definition and the call, and an organization allowlist can substitute. When either applies, or the effective model cannot be determined, report it and keep the work with the root rather than accepting a substitute. Never route a child to `opus` or `fable`, and never raise a role to `xhigh` or `max`. `effort` in a definition overrides session effort; it is a property of the role, not a ceiling inherited from the caller.
 
-Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in model, permissions, tools, scope, workspace, and authority.
+Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in permissions, tools, scope, workspace, and authority; model and effort stay fixed per role at every layer.
 
 Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
 
@@ -587,6 +588,7 @@ for path in \
   "$TARGET_CLAUDE_MD" \
   "$CLAUDE_HOME/references/model-routing.md" \
   "$CLAUDE_HOME/references/subagents.md" \
+  "$CLAUDE_HOME/references/engineering-design.md" \
   "$CLAUDE_HOME/references/worktrees.md" \
   "$CLAUDE_HOME/references/multi-session-coordination.md" \
   "$CLAUDE_HOME/references/reference-doc-routing.md" \
@@ -623,6 +625,8 @@ done
 
 # Roles that must stay read-only: plan permission mode, and no Edit or Write.
 READ_ONLY_AGENTS=" read-only-explorer docs-researcher senior-reviewer "
+# Lookup roles run on Haiku with no effort field; judgment roles run on Sonnet at high.
+HAIKU_AGENTS=" read-only-explorer docs-researcher "
 
 for agent_name in \
   local-orchestrator \
@@ -636,7 +640,6 @@ for agent_name in \
   if grep -q '^name:' "$agent" \
     && grep -q '^description:' "$agent" \
     && grep -q '^model:' "$agent" \
-    && grep -q '^effort:' "$agent" \
     && grep -q '^permissionMode:' "$agent" \
     && grep -q '^tools:' "$agent"; then
     say "OK Claude Code frontmatter: $agent"
@@ -660,11 +663,19 @@ for agent_name in \
     fail "Write-capable role must use permissionMode: default unless a maintainer approved otherwise: $agent"
   fi
 
-  if grep -Eq "^name:[[:space:]]*$agent_name[[:space:]]*$" "$agent" \
-    && grep -Eq '^model:[[:space:]]*haiku[[:space:]]*$' "$agent"; then
-    say "OK Claude Code agent name and model: $agent"
+  route_ok=0
+  if [[ "$HAIKU_AGENTS" == *" $agent_name "* ]]; then
+    if grep -Eq '^model:[[:space:]]*haiku[[:space:]]*$' "$agent" && ! grep -q '^effort:' "$agent"; then
+      route_ok=1
+    fi
+  elif grep -Eq '^model:[[:space:]]*sonnet[[:space:]]*$' "$agent" \
+    && grep -Eq '^effort:[[:space:]]*high[[:space:]]*$' "$agent"; then
+    route_ok=1
+  fi
+  if grep -Eq "^name:[[:space:]]*$agent_name[[:space:]]*$" "$agent" && (( route_ok == 1 )); then
+    say "OK Claude Code agent name and per-role route: $agent"
   else
-    fail "Check Claude Code agent name or fail-closed Haiku model: $agent"
+    fail "Check Claude Code agent name or the fixed per-role route: $agent"
   fi
 
   if [[ "$agent_name" == "local-orchestrator" ]]; then

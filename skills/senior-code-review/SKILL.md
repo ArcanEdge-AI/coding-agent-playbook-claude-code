@@ -29,9 +29,13 @@ Review the diff you are about to hand over, not the diff you intended to write. 
 
 **Accessibility** — semantics, labels, focus management, contrast, keyboard reachability, for UI changes.
 
-**Maintainability** — naming that hides intent, over-abstraction, speculative configurability, a pattern that fights the surrounding code.
+**Maintainability and design** — naming that hides intent; an abstraction, layer, dependency, or piece of state that no concrete current requirement justifies; speculative configurability; a duplicated source of truth or hidden coupling; a symptom patch where a root-cause fix at the correct boundary was in scope; a change that would ripple through unrelated components on a small requirement change; a pattern that fights the surrounding code.
 
-**Unverified subagent claims** — anything a subagent asserted that you never checked against evidence. This is the most common gap in delegated work: a confident summary of a file, accepted without opening the file.
+**Completeness** — the integration and verification the change needed: an unconverted caller, a missed call site, a check that was required but never run. A smaller diff that leaves these behind is unfinished, not simpler.
+
+**Unrecorded tradeoffs** — material technical debt (a compatibility shim, a staged migration, a deferred cleanup) accepted without its scope, rationale, and follow-up condition written into the plan, the change description, or the project's docs. Minor implementation choices do not need this; material ones do.
+
+**Unverified subagent claims** — anything a subagent asserted that you never checked against evidence. This is the most common gap in delegated work: a confident summary of a file, accepted without opening the file. Include the route: every dispatch went to a bundled role with that role's model passed explicitly, and nothing suggests a forced or substituted model answered instead.
 
 **Unreconciled workspaces** — task-created auxiliary worktrees without integration evidence and a final `removed` or `preserved` disposition.
 

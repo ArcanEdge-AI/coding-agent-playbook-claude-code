@@ -25,16 +25,16 @@ Delegate when you want one of the advantages. Do not delegate a task you could f
 
 ## The roles
 
-| Role | Model default / typical | Effort | Mode | Tools | Use it for |
+| Role | Model | Effort | Mode | Tools | Use it for |
 | --- | --- | --- | --- | --- | --- |
-| `read-only-explorer` | haiku / haiku | low | plan | Read, Grep, Glob | Mapping call paths, finding every call site, learning the local conventions before you design. |
-| `docs-researcher` | haiku / haiku | low | plan | Read, Grep, Glob, WebFetch, WebSearch | Verifying external library, API, or platform behavior against the version actually installed. |
-| `test-triager` | haiku / sonnet | medium | default | Read, Grep, Glob, Bash, Edit | Reproducing a failure and finding its root cause with proof. Runs suites; plan-mode roles cannot. |
-| `isolated-worker` | haiku / sonnet | medium | default | Read, Grep, Glob, Edit, Write, Bash | Implementing a bounded change whose design is already settled. |
-| `senior-reviewer` | haiku / sonnet | high | plan | Read, Grep, Glob, Bash | Reviewing a real artifact for defects, regressions, and risk before acceptance. |
-| `local-orchestrator` | haiku / sonnet | high | default | Agent + read/write/web | One slice that genuinely fans out into independent parallel parts. |
+| `read-only-explorer` | haiku | none | plan | Read, Grep, Glob | Mapping call paths, finding every call site, learning the local conventions before you design. |
+| `docs-researcher` | haiku | none | plan | Read, Grep, Glob, WebFetch, WebSearch | Verifying external library, API, or platform behavior against the version actually installed. |
+| `test-triager` | sonnet | high | default | Read, Grep, Glob, Bash, Edit | Reproducing a failure and finding its root cause with proof. Runs suites; plan-mode roles cannot. |
+| `isolated-worker` | sonnet | high | default | Read, Grep, Glob, Edit, Write, Bash | Implementing a bounded change whose design is already settled. |
+| `senior-reviewer` | sonnet | high | plan | Read, Grep, Glob, Bash | Reviewing a real artifact for defects, regressions, and risk before acceptance. |
+| `local-orchestrator` | sonnet | high | default | Agent + read/write/web | One slice that genuinely fans out into independent parallel parts. |
 
-Every definition pins `model: haiku` so an omitted-model dispatch fails closed. Pass the model you actually want on every call. Every leaf role lists `disallowedTools: Agent`, which is what actually prevents a third layer of nesting.
+Each role has a fixed route: the two lookup roles run on `haiku` (which does not support `effort`), and the four judgment roles run on `sonnet` at `effort: high`. The model is pinned in the definition and also passed on the call. Every leaf role lists `disallowedTools: Agent`, which is what actually prevents a third layer of nesting. `model-routing.md` explains the split and what can override it.
 
 Definitions live in `agents/` and install to the Claude Code home agents directory. A repository can override or add roles under `.claude/agents/`.
 
@@ -106,7 +106,7 @@ The second one will come back with something confident and probably wrong, and y
 - **Stop conditions** — the situations where stopping beats continuing.
 - **Write ownership** — for any subagent that edits, the exact files it owns. Concurrent writers must never share a file.
 - **Workspace** — the current one, unless the root has issued a worktree permit.
-- **Model** — always explicit on the call.
+- **Model** — the role's model, explicit on the call: `haiku` for a lookup role, `sonnet` for a judgment role. The role's frontmatter supplies its effort; there is no per-call effort parameter, so use the bundled role rather than a built-in agent type.
 
 Keep the payload small. Send paths and accepted results, not history, transcripts, or logs.
 
@@ -149,7 +149,7 @@ Verify:
 
 When two subagents disagree, resolve it with primary evidence: the code, the tests, the schema, the logs, the runtime behavior. Do not average their conclusions or prefer the more confident one.
 
-When a subagent fails, one retry with a sharper assignment is reasonable. A second identical failure is information — report the blocker rather than retrying again.
+When a subagent fails, one retry with a sharper assignment is reasonable. A second identical failure is information — report the blocker rather than retrying again. A retry or a replacement stays on the role's route; do not rescue a failing assignment by escalating to `opus` or `fable` or by raising effort, and do not accept a substituted model as if it were the role's.
 
 Never accept a conclusion solely because it sounds confident.
 

@@ -59,6 +59,7 @@ $CLAUDE_HOME/
     README.md
     model-routing.md
     subagents.md
+    engineering-design.md
     worktrees.md
     multi-session-coordination.md
     reference-doc-routing.md
@@ -92,22 +93,22 @@ $CLAUDE_HOME/
 
 ## Agent Definitions
 
-Each file under `$GLOBAL_AGENTS_HOME` needs YAML frontmatter with `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`, followed by the system-prompt body.
+Each file under `$GLOBAL_AGENTS_HOME` needs YAML frontmatter with `name`, `description`, `model`, `permissionMode`, `tools`, and `disallowedTools`, plus `effort` on the four Sonnet roles, followed by the system-prompt body.
 
 | Agent | model | effort | permissionMode | tools | disallowedTools |
 | --- | --- | --- | --- | --- | --- |
-| `local-orchestrator` | `haiku` | `high` | `default` | Agent, Read, Grep, Glob, Bash, Edit, Write, WebFetch, WebSearch | EnterWorktree, ExitWorktree |
-| `read-only-explorer` | `haiku` | `low` | `plan` | Read, Grep, Glob | Agent |
-| `docs-researcher` | `haiku` | `low` | `plan` | Read, Grep, Glob, WebFetch, WebSearch | Agent |
-| `test-triager` | `haiku` | `medium` | `default` | Read, Grep, Glob, Bash, Edit | Agent |
-| `isolated-worker` | `haiku` | `medium` | `default` | Read, Grep, Glob, Edit, Write, Bash | Agent |
-| `senior-reviewer` | `haiku` | `high` | `plan` | Read, Grep, Glob, Bash | Agent |
+| `local-orchestrator` | `sonnet` | `high` | `default` | Agent, Read, Grep, Glob, Bash, Edit, Write, WebFetch, WebSearch | EnterWorktree, ExitWorktree |
+| `read-only-explorer` | `haiku` | none | `plan` | Read, Grep, Glob | Agent |
+| `docs-researcher` | `haiku` | none | `plan` | Read, Grep, Glob, WebFetch, WebSearch | Agent |
+| `test-triager` | `sonnet` | `high` | `default` | Read, Grep, Glob, Bash, Edit | Agent |
+| `isolated-worker` | `sonnet` | `high` | `default` | Read, Grep, Glob, Edit, Write, Bash | Agent |
+| `senior-reviewer` | `sonnet` | `high` | `plan` | Read, Grep, Glob, Bash | Agent |
 
-Every `model` is `haiku` so that a dispatch which omits the model fails closed — cheap and weak — rather than silently running on the main session's model. The caller passes the model it actually wants on each `Agent` call; Sonnet is the normal explicit route for `local-orchestrator`, `senior-reviewer`, `test-triager`, and `isolated-worker`.
+`read-only-explorer` and `docs-researcher` use `model: haiku` with no `effort` field, because Haiku does not support effort and those roles return evidence the root checks directly. The other four use `model: sonnet` with `effort: high`. That per-role route is fixed for every nested dispatch, retry, and replacement, independent of the main session's model; `xhigh` and `max` are deliberately not used. The caller also passes the role's model on each `Agent` call so the route survives a stale or overridden definition.
 
-Keep exactly one definition per role. Claude Code supports a per-invocation `model`, so do not create model-specific copies.
+Keep exactly one definition per role. Do not create model-specific copies, and do not change the model or effort of any bundled definition.
 
-`effort` is set per role and overrides the session's effort level. It is a property of the role, not a ceiling inherited from the caller — a low-effort session can still dispatch `senior-reviewer` at high effort.
+`effort` is set per role and overrides the session's effort level. There is no per-invocation effort parameter, so the definition is the only place it can be set; a low-effort session still dispatches the four Sonnet roles at `high`.
 
 `disallowedTools: Agent` on the five leaf roles is what actually prevents a third layer of nesting. Claude Code allows nesting three layers below the main conversation by default, so prompt text alone does not stop a spawn — omitting `Agent` from `tools` and listing it in `disallowedTools` does.
 
@@ -144,8 +145,9 @@ The primary global coding-agent behavior may already be configured in this CLAUD
 Supporting global reference documents live under the Claude Code home references directory:
 
 - `references/README.md` — map of the available global reference docs
-- `references/model-routing.md` — how Claude Code resolves a subagent's model, what overrides what, effort semantics, permission modes, tool boundaries, and nesting depth
+- `references/model-routing.md` — the fixed per-role route (Haiku for lookup roles, Sonnet at high for judgment roles), how Claude Code resolves a subagent model and what overrides it, effort semantics, permission modes, tool boundaries, and nesting depth
 - `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
+- `references/engineering-design.md` — decision questions for non-trivial design choices, when an abstraction has earned its place, and how to record material technical debt
 - `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
 - `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
 - `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
@@ -171,9 +173,9 @@ Custom Claude Code subagents live under the Claude Code home agents directory:
 
 Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
 
-Pass an explicit `model` on every `Agent` dispatch; never leave it to default. Keep each child at or below the main session's tier (`opus` > `sonnet` > `haiku`) and record what the main session actually is rather than assuming Opus. Equal-tier routing is valid — delegating does not require stepping down. Bundled definitions pin `model: haiku` so an omitted-model dispatch fails closed. Note that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation `model`, and organization allowlists can substitute; verify rather than assume when attribution matters. `effort` comes from the agent definition and overrides session effort — it is a property of the role, not a ceiling inherited from the caller.
+Each bundled subagent has a fixed route that does not follow the model selected for the main session: `read-only-explorer` and `docs-researcher` run on `haiku` (Haiku does not support `effort`, so those definitions set none); `senior-reviewer`, `test-triager`, `isolated-worker`, and `local-orchestrator` run on `sonnet` at `effort: high`. Pass the role model explicitly on every `Agent` dispatch and use the bundled roles; there is no per-call effort parameter, and a definition that omits effort inherits the session level. The same route applies to nested dispatches, retries, and replacements. Claude Code resolves a subagent model as the per-invocation `model`, then the definition `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation model (before Claude Code v2.1.251 the environment variable came first); `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` overrides both the definition and the call, and an organization allowlist can substitute. When either applies, or the effective model cannot be determined, report it and keep the work with the root rather than accepting a substitute. Never route a child to `opus` or `fable`, and never raise a role to `xhigh` or `max`. `effort` in a definition overrides session effort; it is a property of the role, not a ceiling inherited from the caller.
 
-Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in model, permissions, tools, scope, workspace, and authority.
+Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in permissions, tools, scope, workspace, and authority; model and effort stay fixed per role at every layer.
 
 Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
 
@@ -188,7 +190,7 @@ The root session remains accountable for the final plan, final diff, validation,
 
 ## Create Supporting Files
 
-Use this repository's contents as the canonical source for `references/`, `skills/`, and `agents/`. Preserve the intent, names, descriptions, model defaults, effort levels, permission modes, tools, and instructions.
+Use this repository's contents as the canonical source for `references/`, `skills/`, and `agents/`. Preserve the intent, names, descriptions, the per-role model and effort route, permission modes, tools, and instructions.
 
 If the installed Claude Code version uses a different supported frontmatter schema, adapt only as necessary and report the exact adjustment. Do not substitute an unknown model or invent model-specific agent copies.
 
@@ -196,13 +198,13 @@ If the installed Claude Code version uses a different supported frontmatter sche
 
 1. Print the resulting tree for `$CLAUDE_HOME`, `$GLOBAL_REFERENCES_HOME`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME`.
 2. Confirm no repository files were modified.
-3. Confirm each agent file has valid YAML frontmatter with `name`, `description`, `model`, `effort`, `permissionMode`, `tools`, and `disallowedTools`, and that every `model` is `haiku`.
+3. Confirm each agent file has valid YAML frontmatter with `name`, `description`, `model`, `permissionMode`, `tools`, and `disallowedTools`; that `read-only-explorer` and `docs-researcher` use `model: haiku` with no `effort` field; and that the other four use `model: sonnet` with `effort: high`.
 4. Confirm `read-only-explorer`, `docs-researcher`, and `senior-reviewer` use `permissionMode: plan` and list neither `Edit` nor `Write`.
 5. Confirm `test-triager`, `isolated-worker`, and `local-orchestrator` use `permissionMode: default`.
 6. Confirm each `SKILL.md` has YAML frontmatter with `name` and `description`.
 7. Confirm all six agents exist, that only `local-orchestrator` lists `Agent` in `tools`, that the other five list `Agent` in `disallowedTools`, that no model-specific copies were created, and that no definition sets `isolation: worktree`.
 8. Confirm every reference document, template, and skill listed above exists.
-9. Confirm the routing docs state that nesting is enabled by default at three layers, that this playbook caps at two, that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition, that `CLAUDE_CODE_SUBAGENT_MODEL` outranks the per-invocation model, and that effort is a role property rather than an inherited ceiling.
+9. Confirm the routing docs state that the per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles) is independent of the main session's model, that nesting is enabled by default at three layers, that this playbook caps at two, that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition, that the per-invocation `model` outranks frontmatter and `CLAUDE_CODE_SUBAGENT_MODEL` unless `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is set, and that effort is a role property with no per-invocation parameter.
 10. Confirm only Claude Code paths, commands, model aliases, effort levels, permission modes, tool names, and frontmatter fields were installed.
 11. Report files backed up, files skipped and why, assumptions made, and whether the pointer section was created, updated, already present, or skipped.
 

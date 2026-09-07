@@ -2,7 +2,6 @@
 name: docs-researcher
 description: Verifies how a framework, library, API, platform, or protocol actually behaves, using official documentation and the versions this repository actually depends on. Use when a decision hinges on external behavior you would otherwise be recalling from memory — version differences, deprecations, config semantics, API contracts, migration paths. Not for questions answerable from this repository's own code.
 model: haiku
-effort: low
 permissionMode: plan
 tools: Read, Grep, Glob, WebFetch, WebSearch
 disallowedTools: Agent

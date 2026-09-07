@@ -21,6 +21,7 @@ Primary evidence: current code, tests, schemas, configuration, logs, build outpu
 | --- | --- |
 | `model-routing.md` | You are about to dispatch a subagent and need to choose the model, effort, permission mode, tools, and depth — and understand what actually overrides what. |
 | `subagents.md` | You are deciding whether to delegate, which role fits, and how to write an assignment that comes back usable. |
+| `engineering-design.md` | A design choice is non-trivial, cross-cutting, or hard to reverse; you are about to add an abstraction, layer, dependency, state, or configuration mechanism; or an implementation is accumulating workarounds. Decision questions, earned-abstraction cases, and how to record material technical debt. |
 | `worktrees.md` | Isolation is being proposed, a task already owns an auxiliary checkout, or a worktree needs integrating, preserving, or removing. |
 | `multi-session-coordination.md` | Other Claude Code sessions, branches, worktrees, or pull requests may be touching the same area. |
 | `reference-doc-routing.md` | You need to decide which documents matter, how much authority each has, and what to pass to a subagent. |

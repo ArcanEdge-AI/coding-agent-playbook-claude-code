@@ -2,7 +2,6 @@
 name: read-only-explorer
 description: Maps how code actually works — call paths, call sites, data flow, existing patterns, ownership boundaries, and the smallest safe insertion point for a change. Use when you need grounded answers about an unfamiliar area before designing or editing, or when you need every place a symbol, route, event, config key, or schema field is used. Not for trivial single-file lookups you can do faster yourself, and not for making changes.
 model: haiku
-effort: low
 permissionMode: plan
 tools: Read, Grep, Glob
 disallowedTools: Agent
