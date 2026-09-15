@@ -5,7 +5,7 @@ Use this when several Claude Code sessions are working on related features in th
 ```markdown
 Coordinate all active work for the current project.
 
-Use the `multi-session-coordination` skill and consult `references/multi-session-coordination.md`. Consult `references/worktrees.md` if any participating task owns or proposes an auxiliary worktree.
+Use the `multi-session-coordination` skill and the detailed rules packaged with it. Use the `worktree-lifecycle` skill if any participating task owns or proposes an auxiliary worktree.
 
 Detect the project directory, repository, default branch, active branch, worktree, and applicable CLAUDE.md instructions from the environment. Do not ask me for anything you can determine reliably yourself.
 

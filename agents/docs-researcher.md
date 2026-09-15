@@ -32,6 +32,8 @@ Treat blog posts, tutorials, forum answers, and AI-generated summaries as leads 
 
 Quote the specific sentence or signature that establishes the fact, and give the URL. A link to a documentation homepage is not a citation.
 
+If your assignment names a skill or reference document, read it before the work it covers and follow its required steps and outputs. If you cannot read it, say so rather than working from memory.
+
 ## Reconcile against this repository
 
 An external fact is only useful if it matches how the code here actually calls the API. After establishing the documented behavior, check the repository's real usage: the call sites, the configuration, the version-specific options in play.

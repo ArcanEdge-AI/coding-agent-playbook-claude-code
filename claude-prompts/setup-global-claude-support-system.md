@@ -14,13 +14,8 @@ This statement is the authorization for support-only behavior. Without it, stop 
 
 Your job is to create the supporting system only:
 
-- global reference documents
-- subagent routing documentation
-- reference-document routing documentation
-- subagent delegation documentation
-- multi-session coordination documentation
-- reusable skills
-- global custom Claude Code subagent definitions
+- the six self-contained skill packages, each with the references and templates it depends on
+- the six global custom Claude Code subagent definitions
 - a small pointer section in the global CLAUDE.md, only if useful and not already present
 
 Do not modify any repository files. Work only in user-level Claude Code configuration locations.
@@ -29,7 +24,6 @@ Do not modify any repository files. Work only in user-level Claude Code configur
 
 - `CLAUDE_HOME`: use `CLAUDE_CONFIG_DIR` if set; otherwise the Claude Code home, normally `~/.claude`.
 - `GLOBAL_CLAUDE_MD`: `$CLAUDE_HOME/CLAUDE.md`
-- `GLOBAL_REFERENCES_HOME`: `$CLAUDE_HOME/references`
 - `GLOBAL_SKILLS_HOME`: `$CLAUDE_HOME/skills`
 - `GLOBAL_AGENTS_HOME`: `$CLAUDE_HOME/agents`
 
@@ -40,7 +34,7 @@ On Windows, resolve the equivalent user-home paths rather than hardcoding Unix p
 Before writing anything:
 
 1. Print the resolved paths.
-2. Check whether `$GLOBAL_CLAUDE_MD`, `$GLOBAL_REFERENCES_HOME`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME` exist.
+2. Check whether `$GLOBAL_CLAUDE_MD`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME` exist.
 3. Do not delete existing content.
 4. Do not overwrite anything without a timestamped backup.
 5. Prefer a careful update over a replacement when a file already exists.
@@ -55,33 +49,42 @@ Before writing anything:
 ```text
 $CLAUDE_HOME/
   CLAUDE.md
-  references/
-    README.md
-    model-routing.md
-    subagents.md
-    engineering-design.md
-    worktrees.md
-    multi-session-coordination.md
-    reference-doc-routing.md
-    templates/
-      repository-CLAUDE.md
-      architecture.md
-      testing.md
-      security.md
-      design-system.md
-      release.md
-      api-contracts.md
-      data-model.md
-      active-work-record.md
-      task-graph.md
-      worktree-manifest.md
   skills/
-    task-graph-orchestration/SKILL.md
-    subagent-orchestration/SKILL.md
-    worktree-lifecycle/SKILL.md
-    multi-session-coordination/SKILL.md
-    reference-doc-routing/SKILL.md
-    senior-code-review/SKILL.md
+    subagent-orchestration/
+      SKILL.md
+      references/
+        model-routing.md
+        subagents.md
+    task-graph-orchestration/
+      SKILL.md
+      references/templates/task-graph.md
+    worktree-lifecycle/
+      SKILL.md
+      references/
+        worktrees.md
+        templates/worktree-manifest.md
+    multi-session-coordination/
+      SKILL.md
+      references/
+        multi-session-coordination.md
+        templates/active-work-record.md
+    reference-doc-routing/
+      SKILL.md
+      references/
+        README.md
+        engineering-design.md
+        reference-doc-routing.md
+        templates/
+          repository-CLAUDE.md
+          architecture.md
+          testing.md
+          security.md
+          design-system.md
+          release.md
+          api-contracts.md
+          data-model.md
+    senior-code-review/
+      SKILL.md
   agents/
     local-orchestrator.md
     read-only-explorer.md
@@ -90,6 +93,8 @@ $CLAUDE_HOME/
     test-triager.md
     isolated-worker.md
 ```
+
+Every skill is a complete package: copy each skill directory whole, references and templates included, so that every `references/...` path written inside a skill resolves inside that skill's own directory. Do not create a top-level `references/` directory; the `reference-doc-routing` skill packages the catalog that lists every reference and template by owning skill. If an earlier setup left `$CLAUDE_HOME/references/`, leave it in place and report it; the repository installer retires those files safely when they are unchanged, and you must not delete them here.
 
 ## Agent Definitions
 
@@ -110,9 +115,9 @@ Keep exactly one definition per role. Do not create model-specific copies, and d
 
 `effort` is set per role and overrides the session's effort level. There is no per-invocation effort parameter, so the definition is the only place it can be set; a low-effort session still dispatches the four Sonnet roles at `high`.
 
-`disallowedTools: Agent` on the five leaf roles is what actually prevents a third layer of nesting. Claude Code allows nesting three layers below the main conversation by default, so prompt text alone does not stop a spawn — omitting `Agent` from `tools` and listing it in `disallowedTools` does.
+`disallowedTools: Agent` on the five leaf roles is what actually prevents a third layer of nesting. Claude Code allows nesting three layers below the main conversation by default, so prompt text alone does not stop a spawn — omitting `Agent` from `tools` and listing it in `disallowedTools` does. Ordinary assistance is flat; `local-orchestrator` is the one authorized nesting workflow.
 
-Set `tools` to the minimum each role needs. Only `local-orchestrator` gets `Agent`. Its broad tool list is the ceiling its children must stay within, not permission for unassigned direct edits.
+Set `tools` to the minimum each role needs. Only `local-orchestrator` gets `Agent`. Its broad tool list is the ceiling its children must stay within, not permission for unassigned direct edits. No bundled role lists `Skill`, so a helper applies a skill only when the assignment names it and its entrypoint path.
 
 Do not enable `acceptEdits`, `auto`, `dontAsk`, or `bypassPermissions` without an explicit maintainer-approved use case and risk note.
 
@@ -135,23 +140,26 @@ If it exists:
 - If only one marker exists, either is duplicated, or the end precedes the start: stop and report the malformed state without writing.
 - If the pointer already appears to be present, report the possible duplication and delete nothing.
 
-The pointer section is:
+The pointer section is the same text the repository installer writes from `install/support-only-pointer.md`:
 
 ```markdown
 ## Global Reference Documents and Subagent Support
 
 The primary global coding-agent behavior may already be configured in this CLAUDE.md file.
 
-Supporting global reference documents live under the Claude Code home references directory:
+Supporting reference documents ship inside the skill that owns them, under the Claude Code home skills directory, so an installed skill never depends on a loose top-level directory:
 
-- `references/README.md` — map of the available global reference docs
-- `references/model-routing.md` — the fixed per-role route (Haiku for lookup roles, Sonnet at high for judgment roles), how Claude Code resolves a subagent model and what overrides it, effort semantics, permission modes, tool boundaries, and nesting depth
-- `references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
-- `references/engineering-design.md` — decision questions for non-trivial design choices, when an abstraction has earned its place, and how to record material technical debt
-- `references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
-- `references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
-- `references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
-- `references/templates/` — templates for repository CLAUDE.md, architecture, testing, access control, design system, release, API contracts, data model, active work, task graphs, and worktree manifests
+- `skills/reference-doc-routing/references/README.md` — catalog of every packaged reference and template, by owning skill
+- `skills/reference-doc-routing/references/engineering-design.md` — decision questions for non-trivial design choices, when an abstraction has earned its place, and how to record material technical debt
+- `skills/reference-doc-routing/references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
+- `skills/reference-doc-routing/references/templates/` — starter files for a repository CLAUDE.md and for architecture, testing, access-control, design-system, release, API-contract, and data-model docs
+- `skills/subagent-orchestration/references/model-routing.md` — the fixed per-role route (Haiku for lookup roles, Sonnet at high for judgment roles), how Claude Code resolves a subagent model and what overrides it, effort semantics, permission modes, tool boundaries, and nesting depth
+- `skills/subagent-orchestration/references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
+- `skills/task-graph-orchestration/references/templates/task-graph.md` — the task-graph template
+- `skills/worktree-lifecycle/references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
+- `skills/worktree-lifecycle/references/templates/worktree-manifest.md` — the worktree-manifest template
+- `skills/multi-session-coordination/references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
+- `skills/multi-session-coordination/references/templates/active-work-record.md` — the active-work-record template
 
 Reusable Claude Code skills live under the Claude Code home skills directory:
 
@@ -171,15 +179,15 @@ Custom Claude Code subagents live under the Claude Code home agents directory:
 - `agents/test-triager.md`
 - `agents/isolated-worker.md`
 
-Reference documents are supporting context, not automatic truth. For repository tasks, delegate at least one bounded piece of execution to a subagent when subagents are available, and keep task framing, integration, validation, acceptance, and the final response with the root session. Direct root execution is right when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is too small to be worth delegating.
+Reference documents are supporting context, not automatic truth. The root session does repository work directly by default, including substantial multi-file work, applying the skills whose triggers match, and keeps task framing, integration, validation, acceptance, and the final response. It delegates a bounded piece to a subagent only when that has a concrete benefit — independent evidence, genuinely parallel progress, or reading it would rather keep out of its context — under a finite launch and retry allowance set before the first dispatch. Direct execution waives none of the skill, reference, graph-planning, or verification requirements.
 
 Each bundled subagent has a fixed route that does not follow the model selected for the main session: `read-only-explorer` and `docs-researcher` run on `haiku` (Haiku does not support `effort`, so those definitions set none); `senior-reviewer`, `test-triager`, `isolated-worker`, and `local-orchestrator` run on `sonnet` at `effort: high`. Pass the role model explicitly on every `Agent` dispatch and use the bundled roles; there is no per-call effort parameter, and a definition that omits effort inherits the session level. The same route applies to nested dispatches, retries, and replacements. Claude Code resolves a subagent model as the per-invocation `model`, then the definition `model`, then `CLAUDE_CODE_SUBAGENT_MODEL`, then the main conversation model (before Claude Code v2.1.251 the environment variable came first); `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` overrides both the definition and the call, and an organization allowlist can substitute. When either applies, or the effective model cannot be determined, report it and keep the work with the root rather than accepting a substitute. Never route a child to `opus` or `fable`, and never raise a role to `xhigh` or `max`. `effort` in a definition overrides session effort; it is a property of the role, not a ceiling inherited from the caller.
 
-Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses two: the root session, one layer of direct workers or `local-orchestrator`, and a layer of leaves that cannot spawn. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in permissions, tools, scope, workspace, and authority; model and effort stay fixed per role at every layer.
+Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses at most two, and ordinary assistance is flat: a helper does its bounded work without spawning, and `local-orchestrator` is the one authorized nesting workflow, chosen explicitly by the root for a slice with genuine fan-out. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in permissions, tools, scope, workspace, and authority; model and effort stay fixed per role at every layer.
 
 Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
 
-The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
+The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts or the helper launch allowance. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
 
 Verify implementation-relevant claims against primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
 
@@ -190,21 +198,21 @@ The root session remains accountable for the final plan, final diff, validation,
 
 ## Create Supporting Files
 
-Use this repository's contents as the canonical source for `references/`, `skills/`, and `agents/`. Preserve the intent, names, descriptions, the per-role model and effort route, permission modes, tools, and instructions.
+Use this repository's contents as the canonical source for `skills/` and `agents/`. Copy each skill directory whole — `SKILL.md` plus its `references/` tree — and preserve the intent, names, descriptions, the per-role model and effort route, permission modes, tools, and instructions.
 
 If the installed Claude Code version uses a different supported frontmatter schema, adapt only as necessary and report the exact adjustment. Do not substitute an unknown model or invent model-specific agent copies.
 
 ## Validation
 
-1. Print the resulting tree for `$CLAUDE_HOME`, `$GLOBAL_REFERENCES_HOME`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME`.
+1. Print the resulting tree for `$CLAUDE_HOME`, `$GLOBAL_SKILLS_HOME`, and `$GLOBAL_AGENTS_HOME`.
 2. Confirm no repository files were modified.
 3. Confirm each agent file has valid YAML frontmatter with `name`, `description`, `model`, `permissionMode`, `tools`, and `disallowedTools`; that `read-only-explorer` and `docs-researcher` use `model: haiku` with no `effort` field; and that the other four use `model: sonnet` with `effort: high`.
 4. Confirm `read-only-explorer`, `docs-researcher`, and `senior-reviewer` use `permissionMode: plan` and list neither `Edit` nor `Write`.
 5. Confirm `test-triager`, `isolated-worker`, and `local-orchestrator` use `permissionMode: default`.
 6. Confirm each `SKILL.md` has YAML frontmatter with `name` and `description`.
 7. Confirm all six agents exist, that only `local-orchestrator` lists `Agent` in `tools`, that the other five list `Agent` in `disallowedTools`, that no model-specific copies were created, and that no definition sets `isolation: worktree`.
-8. Confirm every reference document, template, and skill listed above exists.
-9. Confirm the routing docs state that the per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles) is independent of the main session's model, that nesting is enabled by default at three layers, that this playbook caps at two, that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition, that the per-invocation `model` outranks frontmatter and `CLAUDE_CODE_SUBAGENT_MODEL` unless `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is set, and that effort is a role property with no per-invocation parameter.
+8. Confirm every skill package, reference, and template listed above exists, and that every `references/...` path written inside a skill resolves inside that skill's own directory. Confirm no new top-level `references/` directory was created.
+9. Confirm the routing docs state that the per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles) is independent of the main session's model, that nesting is enabled by default at three layers, that this playbook caps at two and is flat by default, that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition, that the per-invocation `model` outranks frontmatter and `CLAUDE_CODE_SUBAGENT_MODEL` unless `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is set, and that effort is a role property with no per-invocation parameter.
 10. Confirm only Claude Code paths, commands, model aliases, effort levels, permission modes, tool names, and frontmatter fields were installed.
 11. Report files backed up, files skipped and why, assumptions made, and whether the pointer section was created, updated, already present, or skipped.
 
@@ -212,7 +220,7 @@ Final response format:
 
 ```text
 Summary:
-- Created or updated the global reference structure, skills, and subagent definitions.
+- Created or updated the skill packages and subagent definitions.
 - Left the existing global CLAUDE.md instruction section untouched.
 
 Files:

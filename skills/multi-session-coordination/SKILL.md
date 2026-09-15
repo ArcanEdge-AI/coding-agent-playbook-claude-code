@@ -9,7 +9,7 @@ Subagents report to you. **Independent sessions do not.** Each has its own histo
 
 The failure this skill exists to prevent is not a merge conflict. It is two sessions each doing correct work against different assumptions about a shared contract, both passing their own tests, and Git merging them cleanly into something broken.
 
-Detailed rules: `references/multi-session-coordination.md`. Worktree rules: `references/worktrees.md`.
+Detailed rules: `references/multi-session-coordination.md`, packaged with this skill. Worktree rules: the `worktree-lifecycle` skill.
 
 ## Use this when
 

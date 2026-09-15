@@ -1,6 +1,6 @@
 # Repository Coding Agent Instructions
 
-This repository is a public playbook of Claude Code global instructions, reference documents, skills, and custom subagent definitions. It is almost entirely Markdown, plus two installers and a small amount of YAML frontmatter.
+This repository is a public playbook of Claude Code global instructions, skills with their packaged reference documents, and custom subagent definitions. It is almost entirely Markdown, plus a standard-library Python installer with two thin launchers and a small amount of YAML frontmatter.
 
 Repository-specific guidance here overrides the global instructions where it is more specific.
 
@@ -12,6 +12,8 @@ Repository-specific guidance here overrides the global instructions where it is 
 - Prefer concise, practical guidance over theory — but do not sacrifice necessary detail for brevity. These files are read by agents that need the specifics.
 - Keep the root session accountable for framing, delegation, coordination, integration, validation, and the final report.
 - Keep the subagent lineup at `local-orchestrator`, `read-only-explorer`, `senior-reviewer`, `docs-researcher`, `test-triager`, and `isolated-worker`.
+- Keep the operating model direct-first: the root session implements by default, including substantial multi-file work; delegation is optional, bounded, flat by default, and never mandatory; skills and dependency-graph planning apply whether one agent or several do the work. Do not reintroduce a rule that requires a helper on every task, a direct-execution exception statement, or one helper per graph node.
+- Keep every skill self-contained: a skill's `SKILL.md` and every reference or template it depends on live under that skill's directory and install together, and a path written inside a skill resolves against the skill's package root. There is no top-level `references/` directory. A cross-skill need is met by naming the owning skill, never by reaching into its files or keeping a second copy.
 
 ## Facts About Claude Code That This Playbook Depends On
 
@@ -23,6 +25,7 @@ These are load-bearing. If you change guidance that touches them, verify against
 - **There is no per-invocation `effort` parameter** on the `Agent` call. A definition's `effort` is the only way to set a subagent's effort; a definition that omits it inherits the session level. The `effortLevel` settings key accepts `low` through `xhigh` but not `max`.
 - **Nesting is enabled by default**, up to three layers below the main conversation. `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` **tightens** that to two; `1` turns nesting off. It is not a switch that enables nesting, and it must never be documented as a precondition for delegation.
 - **What actually prevents a spawn** is omitting `Agent` from `tools` and listing it in `disallowedTools`. Prompt text does not.
+- **Subagents invoke skills only through the `Skill` tool.** A `tools` allowlist that omits `Skill` — as every bundled role's does — means the subagent cannot invoke a skill; the caller names each applicable skill and its entrypoint path in the assignment and the helper reads it. The `skills` frontmatter field preloads skill content at startup and is not used here because the applicable set is chosen per task.
 - **`effort` overrides the session effort level.** It is a property of the role, not a ceiling inherited from the caller. Do not reintroduce a rule that a child's effort must be at or below the caller's session effort — it makes the `high`-effort roles unreachable from ordinary sessions.
 - **Plan mode gates shell commands.** Commands outside the built-in read-only set are classifier-reviewed or prompt for approval, so a `plan`-mode subagent cannot reliably run tests, linters, type checkers, or builds. Suite execution belongs to `test-triager` (`default` mode), not `senior-reviewer` (`plan` mode).
 - **`isolation: worktree` branches from the repository default branch**, not the parent session's `HEAD`, unless `worktree.baseRef` is `"head"`. This is why isolation is root-authorized with the base ref recorded.
@@ -42,7 +45,7 @@ These are load-bearing. If you change guidance that touches them, verify against
 
 ## Writing Style for Agent-Facing Files
 
-The `agents/`, `references/`, `skills/`, and `custom-instructions/` files are read by models, and how they are written changes how well they are followed.
+The `agents/`, `skills/` (including each skill's packaged references and templates), and `custom-instructions/` files are read by models, and how they are written changes how well they are followed.
 
 - **Put a rule where its actor can act on it.** Routing rules belong in the caller's documentation, not duplicated into every leaf agent's system prompt — a leaf cannot choose its own model.
 - **Lead with the decision**, then the rule, then the exception.
@@ -61,7 +64,7 @@ Run the full check suite locally before finalizing meaningful changes:
 bash scripts/validate.sh
 ```
 
-CI runs exactly this script (`.github/workflows/validate.yml`), plus a PowerShell job that parses `install.ps1` and exercises it end to end — the Linux runners used for development have no `pwsh`, so that job is the only place `install.ps1` is actually executed.
+CI runs exactly this script (`.github/workflows/validate.yml`), plus a PowerShell job that parses `install.ps1` and runs the launcher end to end, including a dry run.
 
 Automated checks (CI enforces all of these):
 
@@ -71,18 +74,19 @@ Automated checks (CI enforces all of these):
 - `test-triager`, `isolated-worker`, and `local-orchestrator` use `permissionMode: default`.
 - Only `agents/local-orchestrator.md` lists `Agent` in `tools`; the other five list `Agent` in `disallowedTools`.
 - No bundled agent sets `isolation: worktree`.
-- Fenced code blocks are balanced, and every repository path referenced in Markdown exists.
-- Both installers pass a real full-mode install into a temporary home, including a body containing backslashes, and exit non-zero when a managed file is missing.
-- `install.sh` and `install.ps1` produce a byte-identical Claude Code home in both full and support-only mode. They have drifted before — a trailing-newline difference and a case-insensitive manifest sort made each installer rewrite the other's files.
-- `install.sh` passes `bash -n`.
+- Fenced code blocks are balanced; every repository path referenced in Markdown exists; every `references/...` path written inside a skill resolves inside that skill's package; no Markdown outside `skills/` refers to a top-level `references/` path; and no file carries configuration paths or model names from another coding-agent environment.
+- `install/install.py` passes a real full-mode install into a temporary home (including a body containing backslashes), a repeat install that changes nothing and writes no backups, a dry run that creates nothing and uses "Would ..." wording, a support-only install that preserves and backs up existing `CLAUDE.md` content, a legacy-reference migration that retires an unchanged file and preserves a customized one, and exits non-zero when a managed file is missing.
+- `install.sh` and `install.ps1` are thin launchers for `install.py` and, with `pwsh` available, produce a byte-identical Claude Code home in both modes. The former duplicated Bash and PowerShell implementations drifted more than once — a trailing-newline difference and a case-insensitive manifest sort made each rewrite the other's files — so do not reintroduce a second implementation.
+- `install.sh` passes `bash -n`, `install.py` compiles, and the pointer block in `claude-prompts/setup-global-claude-support-system.md` is identical to `install/support-only-pointer.md`.
 
 Manual review:
 
 - Guidance touching any item in **Facts About Claude Code** matches current documentation.
 - `README.md`'s repository-structure block matches the actual tree.
-- Design-principle wording in `custom-instructions/`, `agents/`, and `skills/` stays consistent with `references/engineering-design.md`: smallest complete solution, earned abstractions rather than a blanket ban on single-use ones, root-cause fixes within scope, and material technical debt recorded with scope, rationale, and follow-up condition.
+- Design-principle wording in `custom-instructions/`, `agents/`, and `skills/` stays consistent with `skills/reference-doc-routing/references/engineering-design.md`: smallest complete solution, earned abstractions rather than a blanket ban on single-use ones, root-cause fixes within scope, and material technical debt recorded with scope, rationale, and follow-up condition.
 - Install docs and scripts reference the current file set.
-- Installers default to full mode, maintain the managed-file manifest, retire only unchanged formerly managed files, write backups outside the managed trees, and preserve customized or unrelated files.
+- No file reintroduces mandatory delegation, a direct-execution exception statement, one helper per graph node, graph use that requires delegation, or permission to skip a matching skill for direct or familiar work.
+- The installer defaults to full mode, maintains the managed-file manifest, retires only unchanged formerly managed files (including loose `references/` files left by earlier releases), writes backups outside the managed trees, and preserves customized or unrelated files.
 - Generic policy changes were compared with the companion Codex playbook.
 - The final diff contains no paths, schemas, model names, or commands belonging to another coding-agent environment.
 

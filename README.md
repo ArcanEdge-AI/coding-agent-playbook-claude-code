@@ -9,7 +9,7 @@
 </p>
 
 <p align="center">
-  Configure Claude Code to behave less like a loose autocomplete engine and more like a disciplined senior engineer: orchestrate bounded subagent execution, plan clearly, coordinate parallel work, verify honestly, and ship maintainable code.
+  Configure Claude Code to behave less like a loose autocomplete engine and more like a disciplined senior engineer: implement directly with the skills that apply, use bounded subagents only where they earn their cost, plan clearly, coordinate parallel work, verify honestly, and ship maintainable code.
 </p>
 
 <p align="center">
@@ -49,7 +49,7 @@ The easiest install path is to give this repository URL to your coding agent:
 ```text
 Install this globally: https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code
 
-Follow the repository's INSTALL.md exactly. Use full mode even when an older installation exists; do not infer support-only mode unless I explicitly request it. Preserve my existing instructions, back up anything you change, install the global instructions, references, skills, and custom subagents, then report the installed files and validation results.
+Follow the repository's INSTALL.md exactly. Use full mode even when an older installation exists; do not infer support-only mode unless I explicitly request it. Preserve my existing instructions, back up anything you change, install the global instructions, the self-contained skill packages, and the custom subagents, then report the installed files and validation results.
 ```
 
 That is the intended public experience: users should not need to understand the file layout before installation. The agent should read `INSTALL.md`, clone or fetch the repository, install into user-level Claude Code configuration locations under the resolved Claude Code home, validate the result, and report what changed.
@@ -59,7 +59,7 @@ Support-only is an explicit pointer-only configuration, not an update mode. Use 
 ```text
 Install this in support-only mode: https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code
 
-I already added the global custom instructions manually. Follow INSTALL.md, but do not duplicate the full instructions into CLAUDE.md. Install references, skills, and custom subagents only.
+I already added the global custom instructions manually. Follow INSTALL.md, but do not duplicate the full instructions into CLAUDE.md. Install the skill packages and custom subagents only.
 ```
 
 ---
@@ -70,44 +70,28 @@ I already added the global custom instructions manually. Follow INSTALL.md, but 
 
 Ask your coding agent to install the repository URL and follow `INSTALL.md`. Normal installs and updates use full mode.
 
-### Manual install: macOS / Linux / WSL
+### Manual install
+
+The installer is one standard-library Python script, `install/install.py` (Python 3.8 or newer, no packages). `install/install.sh` and `install/install.ps1` are thin launchers that find Python and run it with the same arguments, so these are equivalent:
 
 ```bash
 git clone https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code.git
 cd coding-agent-playbook-claude-code
+python3 install/install.py --full
+```
+
+```bash
 bash install/install.sh --full
 ```
 
-Support-only mode:
-
-```bash
-bash install/install.sh --support-only
-```
-
-Dry run:
-
-```bash
-bash install/install.sh --full --dry-run
-```
-
-### Manual install: Windows PowerShell
-
 ```powershell
-git clone https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code.git
-cd coding-agent-playbook-claude-code
 pwsh -ExecutionPolicy Bypass -File install/install.ps1 -Full
 ```
 
-Support-only mode:
+Support-only mode is `--support-only` (`-SupportOnly` for the PowerShell launcher). A dry run reports every step with `Would ...` wording and creates nothing:
 
-```powershell
-pwsh -ExecutionPolicy Bypass -File install/install.ps1 -SupportOnly
-```
-
-Dry run:
-
-```powershell
-pwsh -ExecutionPolicy Bypass -File install/install.ps1 -Full -DryRun
+```bash
+python3 install/install.py --full --dry-run
 ```
 
 ### Repository-specific guidance
@@ -115,7 +99,7 @@ pwsh -ExecutionPolicy Bypass -File install/install.ps1 -Full -DryRun
 Copy this template into individual projects as a starting point:
 
 ```text
-references/templates/repository-CLAUDE.md
+skills/reference-doc-routing/references/templates/repository-CLAUDE.md
 ```
 
 Save it as `CLAUDE.md` at the project root, then fill in the actual build commands, test commands, architecture rules, generated-file rules, and release expectations for that repository.
@@ -128,10 +112,10 @@ Coding Agent Playbook ships as separate harness-native editions. This repository
 
 | Edition | Repository | Use when |
 | --- | --- | --- |
-| Claude Code | `ArcanEdge-AI/coding-agent-playbook-claude-code` | You want global Claude Code instructions, reference docs, skills, and subagent definitions. |
+| Claude Code | `ArcanEdge-AI/coding-agent-playbook-claude-code` | You want global Claude Code instructions, self-contained skill packages, and subagent definitions. |
 | Codex | [`ArcanEdge-AI/coding-agent-playbook-codex`](https://github.com/ArcanEdge-AI/coding-agent-playbook-codex) | You want the harness-native edition tuned for Codex. |
 
-The philosophy is shared across both: the root agent acts as the senior engineer and orchestrator, subagents perform bounded evidence-backed execution, independent project sessions are coordinated explicitly, and final decisions stay with the root agent.
+The philosophy is shared across both: the root agent acts as the senior engineer and primary implementer, bounded helpers provide evidence-backed assistance only where it has a concrete benefit, independent project sessions are coordinated explicitly, and final decisions stay with the root agent.
 
 ---
 
@@ -143,6 +127,7 @@ AI coding agents are powerful, but they often fail in predictable ways:
 - They over-engineer simple requests, or patch symptoms and call the smaller diff simpler.
 - They refactor unrelated code.
 - They trust editor diagnostics over real builds.
+- They skip the skill that covers the task because the task looks familiar.
 - They claim tests passed when they did not run them.
 - They delegate poorly or blindly accept subagent output.
 - They allow parallel sessions to develop incompatible contracts or ownership.
@@ -163,11 +148,10 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 | Area | Path | Purpose |
 | --- | --- | --- |
 | Install guide | `INSTALL.md` | Agent-readable install contract for one-prompt installation. |
-| Install scripts | `install/` | Manual installers for Unix-like shells and PowerShell. |
+| Installer | `install/` | One standard-library Python installer, thin Bash and PowerShell launchers, and the support-only pointer text. |
 | Global instructions | `custom-instructions/` | Tool-agnostic behavior rules for elegant, maintainable code. Paste into your global `CLAUDE.md`. |
 | Prompts | `claude-prompts/` | Setup and active-project coordination prompts. |
-| Reference docs | `references/` | The fixed subagent route and capability routing; finite subagent delegation; an engineering-design decision aid; task-local worktrees; multi-session coordination; and reusable templates. |
-| Skills | `skills/` | Reusable workflows for task-graph, subagent, and worktree orchestration, session coordination, document routing, and senior review. |
+| Skills | `skills/` | Six self-contained packages — task-graph, subagent, and worktree orchestration, session coordination, document routing, and senior review — each shipping the references and templates it depends on: the fixed subagent route, delegation rules, the engineering-design decision aid, worktree lifecycle, session coordination, and the repository documentation templates. |
 | Custom agents | `agents/` | Claude Code definitions for a bounded local orchestrator, direct workers, and non-spawning execution leaves. |
 | Repository guidance | `CLAUDE.md` | Instructions for maintaining this public playbook repository. |
 
@@ -179,13 +163,13 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 
 Use this for normal installs and updates. Full mode is the default and safely replaces the playbook-owned marked section and current managed files.
 
-Full install writes the global instructions into the user's global `CLAUDE.md`, installs references, skills, and custom subagents, and records their paths and hashes in a managed-file manifest. Later updates can back up and retire unchanged files removed upstream while preserving customized or unrelated files.
+Full install writes the global instructions into the user's global `CLAUDE.md`, installs the six skill packages and the custom subagents, and records their paths and hashes in a managed-file manifest. Later updates can back up and retire unchanged files removed upstream while preserving customized or unrelated files.
 
 ### Support-only install
 
 Use this only when the user explicitly says the global instructions already live in their global `CLAUDE.md`.
 
-Support-only mode avoids duplicating the full instruction file and installs only the supporting reference docs, skills, and custom subagents.
+Support-only mode avoids duplicating the full instruction file and installs only the skill packages and custom subagents, plus a short pointer section.
 
 ---
 
@@ -198,16 +182,17 @@ It owns:
 - understanding the task
 - the working plan
 - architecture and design judgment
-- which work is delegated, to which role, at which model
+- the implementation, by default
+- which work, if any, is delegated, to which role, at which model
 - coordination with other sessions
 - integration and final acceptance
 - the final diff
 - validation strategy
 - the final response
 
-Subagents perform bounded execution. They buy three things — context isolation, parallelism, and independent judgment — and cost you visibility into how the work was done. Delegate for one of the three, and write the assignment so the missing visibility does not matter.
+Subagents are optional bounded assistance. They buy three things — context isolation, parallelism, and independent judgment — and cost you visibility into how the work was done. Delegate a bounded piece only when one of the three is a concrete benefit for it, and write the assignment so the missing visibility does not matter.
 
-> For repository tasks, delegate at least one bounded piece of execution when subagents are available. Direct root execution is the right call when subagents are unavailable, the user forbids delegation, the action needs authority that must stay with the root, or the task is small enough that delegating costs more than it saves — say which applies.
+> The root session does the work directly by default, including substantial multi-file work, with the skills that apply. It delegates a bounded piece only when a helper has a concrete benefit — independent evidence, genuinely parallel progress, or reading it would rather keep out of its context — under a finite launch and retry allowance set before the first dispatch. Direct execution waives none of the skill, reference, graph-planning, or verification requirements.
 
 Subagents share the current workspace by default. The auxiliary-worktree budget is separate and starts at zero. Only the root may authorize worktree isolation, and every task-created auxiliary is either integrated and removed inside the task or preserved with an exact blocker.
 
@@ -215,7 +200,7 @@ Subagents share the current workspace by default. The auxiliary-worktree budget 
 
 ## Subagent Model
 
-Subagents are focused engineering assistants, not autonomous owners. Definitions live in `agents/` and install to the Claude Code home agents directory; repositories can override them under `.claude/agents/`. Each is Markdown with YAML frontmatter pinning the supporting model, the role's effort, `permissionMode`, `tools`, and `disallowedTools`.
+Subagents are optional, focused engineering assistants, not autonomous owners. Definitions live in `agents/` and install to the Claude Code home agents directory; repositories can override them under `.claude/agents/`. Each is Markdown with YAML frontmatter pinning the supporting model, the role's effort, `permissionMode`, `tools`, and `disallowedTools`.
 
 | Subagent | Model | Effort | Permission | Tools | Best for |
 | --- | --- | --- | --- | --- | --- |
@@ -261,7 +246,7 @@ So `git diff`, `git log`, `git blame`, and file reads are dependable there. `npm
 
 ### Nesting: two layers, enforced by tools
 
-Claude Code allows subagents to spawn their own subagents **by default**, up to three layers below the main conversation. This playbook uses two:
+Claude Code allows subagents to spawn their own subagents **by default**, up to three layers below the main conversation. This playbook uses at most two, and ordinary assistance uses one — a helper does its bounded work without spawning, and `local-orchestrator` is the explicitly chosen exception for a slice with genuine fan-out:
 
 ```text
 layer 0   root session
@@ -292,9 +277,9 @@ Only the root may authorize isolation, and only with the base ref recorded and t
 See:
 
 ```text
-references/model-routing.md
-references/subagents.md
 skills/subagent-orchestration/SKILL.md
+skills/subagent-orchestration/references/model-routing.md
+skills/subagent-orchestration/references/subagents.md
 ```
 
 A good assignment names the role and its model, the goal as a verifiable outcome, the context, the scope and non-goals, write ownership for anything that edits, the exact workspace, the required evidence, the acceptance condition, and the stop conditions.
@@ -303,9 +288,9 @@ A good assignment names the role and its model, the goal as a verifiable outcome
 
 ## Formal Task-Graph Orchestration
 
-For work with substantial fan-out, genuine dependencies, broad scope, layered consolidation, or separate implementation and verification paths, the playbook can compile an instruction-only task graph before delegation.
+For work with substantial fan-out, genuine dependencies, broad scope, layered consolidation, or separate implementation and verification paths, the playbook compiles an instruction-only task graph before organizing and executing the dependent work — whether the root session executes every node itself or hands bounded nodes to helpers.
 
-The root session owns the graph: the bounded nodes, what each consumes and produces, the dependency edges that are actually real, write ownership, the model for each dispatch, permission and tool boundaries, workspaces, verification gates, and approval gates. Only nodes whose inputs are ready run, and a failure invalidates only the downstream nodes that consumed its output.
+The root session owns the graph: the bounded nodes, what each consumes and produces, the dependency edges that are actually real, write ownership, the skills that govern each node, the model for any helper dispatch, permission and tool boundaries, workspaces, verification gates, and approval gates. Only nodes whose inputs are ready run, and a failure invalidates only the downstream nodes that consumed its output. A node is not a reason to launch a helper.
 
 Every proposed edge has to survive one question — *can the downstream node begin correctly without an accepted output from the upstream node?* If it can, the edge is narrative order rather than a dependency, and keeping it costs parallelism.
 
@@ -315,7 +300,7 @@ See:
 
 ```text
 skills/task-graph-orchestration/SKILL.md
-references/templates/task-graph.md
+skills/task-graph-orchestration/references/templates/task-graph.md
 ```
 
 Run the multi-session coordination workflow first when other Claude Code sessions, branches, worktrees, pull requests, or active-work records may affect the graph's ownership or contracts.
@@ -349,9 +334,9 @@ Before the final response, the root reconciles every task-created auxiliary. It 
 Supporting files:
 
 ```text
-references/worktrees.md
-references/templates/worktree-manifest.md
 skills/worktree-lifecycle/SKILL.md
+skills/worktree-lifecycle/references/worktrees.md
+skills/worktree-lifecycle/references/templates/worktree-manifest.md
 ```
 
 ---
@@ -407,10 +392,10 @@ claude-prompts/coordinate-active-project-work.md
 Supporting files:
 
 ```text
-references/multi-session-coordination.md
-references/templates/active-work-record.md
-references/worktrees.md
 skills/multi-session-coordination/SKILL.md
+skills/multi-session-coordination/references/multi-session-coordination.md
+skills/multi-session-coordination/references/templates/active-work-record.md
+skills/worktree-lifecycle/SKILL.md
 ```
 
 The optional active-work record gives repositories a local fallback when complete session-history discovery is unavailable. It is advisory and must be verified against current session and repository evidence.
@@ -434,11 +419,9 @@ Primary evidence includes current code, tests, schemas, configuration, logs, bui
 See:
 
 ```text
-references/model-routing.md
-references/reference-doc-routing.md
-references/subagents.md
-references/multi-session-coordination.md
-references/worktrees.md
+skills/reference-doc-routing/SKILL.md
+skills/reference-doc-routing/references/reference-doc-routing.md
+skills/reference-doc-routing/references/README.md
 ```
 
 ---
@@ -479,42 +462,51 @@ references/worktrees.md
 │   └── global-coding-agent-instructions.md
 ├── install/
 │   ├── install.ps1
-│   └── install.sh
-├── references/
-│   ├── README.md
-│   ├── engineering-design.md
-│   ├── model-routing.md
-│   ├── multi-session-coordination.md
-│   ├── reference-doc-routing.md
-│   ├── subagents.md
-│   ├── worktrees.md
-│   └── templates/
-│       ├── active-work-record.md
-│       ├── api-contracts.md
-│       ├── architecture.md
-│       ├── data-model.md
-│       ├── design-system.md
-│       ├── release.md
-│       ├── repository-CLAUDE.md
-│       ├── security.md
-│       ├── task-graph.md
-│       ├── testing.md
-│       └── worktree-manifest.md
+│   ├── install.py
+│   ├── install.sh
+│   └── support-only-pointer.md
 ├── scripts/
 │   └── validate.sh
 └── skills/
     ├── multi-session-coordination/
-    │   └── SKILL.md
+    │   ├── SKILL.md
+    │   └── references/
+    │       ├── multi-session-coordination.md
+    │       └── templates/
+    │           └── active-work-record.md
     ├── reference-doc-routing/
-    │   └── SKILL.md
+    │   ├── SKILL.md
+    │   └── references/
+    │       ├── README.md
+    │       ├── engineering-design.md
+    │       ├── reference-doc-routing.md
+    │       └── templates/
+    │           ├── api-contracts.md
+    │           ├── architecture.md
+    │           ├── data-model.md
+    │           ├── design-system.md
+    │           ├── release.md
+    │           ├── repository-CLAUDE.md
+    │           ├── security.md
+    │           └── testing.md
     ├── senior-code-review/
     │   └── SKILL.md
     ├── subagent-orchestration/
-    │   └── SKILL.md
+    │   ├── SKILL.md
+    │   └── references/
+    │       ├── model-routing.md
+    │       └── subagents.md
     ├── task-graph-orchestration/
-    │   └── SKILL.md
+    │   ├── SKILL.md
+    │   └── references/
+    │       └── templates/
+    │           └── task-graph.md
     └── worktree-lifecycle/
-        └── SKILL.md
+        ├── SKILL.md
+        └── references/
+            ├── templates/
+            │   └── worktree-manifest.md
+            └── worktrees.md
 ```
 
 ---
@@ -575,9 +567,10 @@ The root session still decides the design, accepts or rejects the recommendation
 
 ```text
 1. Ask your coding agent to install this repository URL.
-2. Let the installer configure global instructions, references, skills, and subagents.
+2. Let the installer configure global instructions, skill packages, and subagents.
 3. Add repository-specific CLAUDE.md guidance to each project.
-4. Let the root session frame the task, choose what to delegate, and coordinate.
+4. Let the root session frame the task, select the skills that apply, and do the
+   work directly by default; delegate only bounded pieces with a concrete benefit.
 5. Pass the role's model on every dispatch — haiku for lookup roles, sonnet for
    judgment roles — and use the bundled roles so their fixed effort applies.
    The route never follows the root model.

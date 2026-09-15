@@ -5,7 +5,7 @@ description: Use when planning how to delegate a coding task to Claude Code suba
 
 # Subagent Orchestration
 
-You own the task. Subagents buy you three things — context isolation, parallelism, and independent judgment — and cost you visibility into how the work was done. Delegate when you want one of the three, and write the assignment so the missing visibility does not matter.
+You own the task, and by default you do it. Subagents buy you three things — context isolation, parallelism, and independent judgment — and cost you visibility into how the work was done. Delegate a bounded piece only when one of the three is a concrete benefit for it, and write the assignment so the missing visibility does not matter.
 
 Full detail: `references/subagents.md` and `references/model-routing.md`.
 
@@ -17,9 +17,9 @@ Delegate when at least one is true:
 - **Parallelism** — several genuinely independent pieces can run at once.
 - **Independent judgment** — a reviewer who never saw the implementer's reasoning will catch what the implementer cannot.
 
-Do it yourself when the task is two tool calls, when it is one continuous design judgment, or when explaining the assignment would take longer than doing the work.
+Do it yourself otherwise — and that is the normal case, including substantial multi-file work. Do not delegate because a role is available or cheap, because the task is large, because a graph has a node, or because you have not used a subagent yet. Do not delegate tightly coupled work that would need its context rebuilt at every handoff, or work you have already done.
 
-For a repository task with subagents available, prefer delegating at least one bounded piece — exploration, research, triage, review, or implementation. Keep framing, integration, validation, and the final answer.
+Before the first dispatch, set a finite allowance of launches and retries within the authority you actually have, and for each helper note what it returns, how you will verify it, and the benefit. Keep framing, integration, validation, and the final answer. Direct work waives nothing: the skills, references, graph planning, and verification the task needs apply either way.
 
 ## 2. Pick the role
 
@@ -62,6 +62,11 @@ Scope:
 Non-goals:
 [What to leave alone. This prevents the most common failure — scope drift.]
 
+Skills:
+[The applicable skills, each with its SKILL.md path, to read before the covered
+work. Leaf roles cannot discover or invoke skills themselves — their `tools`
+allowlist omits `Skill`.]
+
 Write ownership:               (only for subagents that edit)
 [Exact files this subagent owns. No concurrent sibling may own them too.]
 
@@ -88,7 +93,7 @@ Sequence only for a real dependency — the second genuinely cannot start withou
 
 Before parallel writers: confirm file ownership is disjoint. If it is not, serialize them. A separate worktree does not fix overlapping writes; it defers the conflict.
 
-Claude Code caps concurrent subagents (20 by default) and fails spawns past it. Treat that as backpressure — let running work finish instead of queuing speculative work.
+Claude Code caps concurrent subagents (20 by default) and fails spawns past it. Treat that as backpressure — let running work finish instead of queuing speculative work. Every launch counts against your allowance; expand it only for a newly discovered dependency, an invalidated gate, or a changed user scope, and record why.
 
 ## 6. Nesting, if you use `local-orchestrator`
 
@@ -102,7 +107,7 @@ layer 2   leaves — cannot spawn
 
 There is no flag to verify before a `local-orchestrator` can dispatch; nesting is already on. The cap holds because every leaf role carries `disallowedTools: Agent`. An operator can additionally set `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2`; that is hardening, not a precondition, and you do not change it from inside a task.
 
-Use `local-orchestrator` only for a slice with genuine fan-out. When one worker can do the slice, dispatch that worker.
+Assistance is flat by default: a helper does its bounded work without spawning. `local-orchestrator` is the one authorized nesting workflow, chosen explicitly by you for a slice with genuine fan-out. When one worker can do the slice, dispatch that worker.
 
 ## 7. Verify before you accept
 
@@ -111,13 +116,14 @@ A returned result is a claim.
 - Does the evidence meet the acceptance condition, or does it just sound right?
 - Do the named paths and symbols exist and say what the result says? Spot-check the load-bearing ones.
 - Did anything outside scope change?
-- Was validation actually run, or is its absence explained?
+- Was validation actually run, or is its absence explained? A reason for omitting a check is not a passing check.
+- Were the skills the assignment named actually applied? Their required outputs are the evidence; a mention is not.
 - Did the child add machinery the assignment did not call for — an abstraction, state, configurability, or a workaround where a boundary fix was in scope?
 - Have you read the final diff yourself?
 
 When two subagents disagree, resolve it against primary evidence — code, tests, schemas, logs, runtime behavior. Do not prefer the more confident one.
 
-One retry with a sharper assignment is reasonable. A second identical failure is information: report the blocker.
+One retry with a sharper assignment is reasonable, after you state the failure evidence and what will change; it consumes the allowance. A second identical failure is information: report the blocker. Prefer a bounded correction or finishing the piece yourself over a chain of reviewers, and never cancel required verification to finish sooner.
 
 Never accept a conclusion because it sounds confident.
 
@@ -131,8 +137,8 @@ A subagent can gather the evidence. You make the call.
 
 Start in the current workspace with an auxiliary-worktree budget of zero, and expect to stay there. Only you may authorize `isolation: worktree`, and only with the base ref recorded — an isolated subagent branches from the repository default branch, not your `HEAD`, unless `worktree.baseRef` is set to `head`.
 
-One active auxiliary needs no extra approval; two or more need the user's. Before your final response, every task-created auxiliary is either integrated and removed, or preserved with an exact blocker. See `references/worktrees.md`.
+One active auxiliary needs no extra approval; two or more need the user's. Before your final response, every task-created auxiliary is either integrated and removed, or preserved with an exact blocker. The `worktree-lifecycle` skill holds the full rules.
 
 ## 10. Report
 
-State what changed or was answered, which subagents you used and what you accepted from them, what validation ran and what it produced, any workspace disposition, and anything still blocked. Lead with the outcome.
+Lead with the outcome. State what changed or was answered, what validation ran and what it produced, anything still blocked, and — when helpers were used — which ones, what you accepted from them, and how the allowance was spent. Reconcile any helper still running: close an optional one whose output is no longer needed through the supported controls, preserving its useful output. Work you did directly gets no orchestration report.

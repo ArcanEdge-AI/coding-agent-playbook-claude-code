@@ -39,6 +39,8 @@ Review the diff you are about to hand over, not the diff you intended to write. 
 
 **Unreconciled workspaces** — task-created auxiliary worktrees without integration evidence and a final `removed` or `preserved` disposition.
 
+**Unmet skill and graph deliverables** — a skill you selected whose required checks or outputs were never produced; a graph node or approval gate still open. Naming a skill is not applying it.
+
 ## The test
 
 ```text
@@ -52,6 +54,7 @@ If not, fix it or state the remaining risk plainly. Do not hand over a change wh
 State exactly what you ran and what happened.
 
 - Name the command and the result.
+- Separate checks run now from historical results, pre-existing failures, and behavior you did not verify. A passing subset does not establish a new feature.
 - If a relevant check did not run, say so and why. Do not describe an unrun check as passing.
 - If a check failed and you could not fix it in scope, report the failure with its output.
 
