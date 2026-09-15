@@ -1,13 +1,13 @@
 ---
 name: reference-doc-routing
-description: Use when a task might need architecture, testing, access-control, design-system, API, release, data-model, subagent, or worktree reference documents. Helps pick the ones that matter, judge how much authority each has, read only the relevant sections, and pass concise labeled context to subagents.
+description: Use when a task might need engineering-design, architecture, testing, access-control, design-system, API, release, data-model, subagent, or worktree reference documents. Helps pick the ones that matter, judge how much authority each has, read only the relevant sections, and pass concise labeled context to subagents. Packages the reference catalog, the engineering-design decision aid, and the repository documentation templates.
 ---
 
 # Reference Doc Routing
 
 A reference document tells you what someone intended. The code tells you what is true. Route documents so you get the intent without inheriting the drift.
 
-Full detail: `references/reference-doc-routing.md`.
+Full detail: `references/reference-doc-routing.md`. This package also carries `references/README.md`, the catalog of every reference and template the playbook ships by owning skill; `references/engineering-design.md`, the decision questions for non-trivial design choices; and `references/templates/`, starter files for repository documentation. A reference owned by another skill is reached by using that skill, not by copying its file.
 
 ## Workflow
 

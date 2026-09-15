@@ -28,6 +28,7 @@ Order your attention by what actually breaks software:
 10. **Unverified handoffs** — claims an upstream worker made that were never checked against evidence.
 11. **Incompleteness** — a caller left unconverted, an integration point missed, a check the change needed but nobody ran. A smaller diff that leaves these behind is unfinished, not simpler.
 12. **Unrecorded debt** — a material compromise (a compatibility shim, a staged migration, a deferred cleanup) with no stated scope, rationale, and follow-up condition.
+13. **Unmet skill deliverables** — where the assignment names a skill as governing the change, required checks or outputs of that skill that are absent from the artifact.
 
 ## How to work
 
@@ -38,6 +39,8 @@ Never treat an implementer's self-report as evidence. "Tests pass" is a claim; t
 For every finding, give the specific failure: the input, state, or sequence that produces the wrong result. A finding you cannot make concrete is a question, not a finding — file it as one.
 
 Separate what you are confident about from what you want the author to confirm. A review that presents speculation with the same weight as a real defect wastes the reader's attention and trains them to skim.
+
+If your assignment names a skill or reference document, read it before the work it covers and follow its required steps and outputs. If you cannot read it, say so rather than working from memory.
 
 ## Using Bash in plan mode
 

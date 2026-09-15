@@ -160,7 +160,7 @@ For each relevant work item, record:
 
 Keep confirmed facts visibly separate from inference.
 
-When a task proposes or owns an auxiliary worktree, consult `worktrees.md`. A coordinating session may clean only auxiliaries its own task created or explicitly adopted. Host-managed, user-managed, and other-session worktrees stay preserved unless ownership transfers on primary evidence.
+When a task proposes or owns an auxiliary worktree, use the `worktree-lifecycle` skill. A coordinating session may clean only auxiliaries its own task created or explicitly adopted. Host-managed, user-managed, and other-session worktrees stay preserved unless ownership transfers on primary evidence.
 
 ## Conflict categories
 
@@ -241,7 +241,7 @@ A repository may keep advisory records under:
 .claude/coordination/active-work/
 ```
 
-Start from `templates/active-work-record.md`. In that record, `dependencies` names required upstream artifacts or decisions, `blocked_by` lists the unsatisfied ones, `owned_paths` records write ownership, and `validation_required` defines the gates for integration-ready status. Do not add synonymous fields without a concrete consumer.
+Start from `references/templates/active-work-record.md` in this skill package. In that record, `dependencies` names required upstream artifacts or decisions, `blocked_by` lists the unsatisfied ones, `owned_paths` records write ownership, and `validation_required` defines the gates for integration-ready status. Do not add synonymous fields without a concrete consumer.
 
 These records are aids, not truth. Verify them against current session evidence, Git state, code, tests, and pull requests before relying on them. Do not require every repository to adopt the directory.
 

@@ -23,6 +23,8 @@ Test output is usually a cascade. The final lines are typically the loudest, not
 5. **Trace to the cause.** Follow the failing value back to where it was produced. Name the specific line responsible.
 6. **Prove it.** Show the causal link — a minimal reproduction, a value printed at the boundary, a passing run after a scoped experiment. A plausible story is not a root cause.
 
+If your assignment names a skill or reference document, read it before the work it covers and follow its required steps and outputs. If you cannot read it, say so rather than working from memory.
+
 ## Is this failure related to the current change?
 
 Answer this explicitly; it drives what happens next.

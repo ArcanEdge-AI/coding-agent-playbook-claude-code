@@ -21,7 +21,7 @@ And two costs that are easy to underestimate:
 1. **Everything it needs must be in the prompt.** A vague assignment produces vague work, and you will not see the wrong turn — only the confident summary at the end.
 2. **You cannot see how it got there.** The final message is all you get, so the assignment must demand checkable evidence.
 
-Delegate when you want one of the advantages. Do not delegate a task you could finish in two tool calls; the round trip costs more than the work.
+Delegate a bounded piece when one of the advantages is a concrete benefit for it. Do not delegate a task you could finish in two tool calls; the round trip costs more than the work. Doing the work yourself is the default, including substantial multi-file work.
 
 ## The roles
 
@@ -52,9 +52,7 @@ Definitions live in `agents/` and install to the Claude Code home agents directo
 | "Audit these 15 files independently, then consolidate." | `local-orchestrator` |
 | "Design this system." | Nobody — that is the root's job. |
 
-For a repository task, prefer delegating at least one bounded piece of execution when subagents are available: exploration, review, triage, research, or the implementation itself. The root stays accountable for framing, integration, validation, and the final answer.
-
-Direct root execution is the right call when subagents are unavailable, the user asked you not to delegate, the action requires authority that must stay with the root, or the task is small enough that delegation costs more than it saves. Say which applies rather than delegating for form's sake.
+Direct root execution is the default for a repository task. A helper has to earn its cost with independent evidence, genuinely parallel progress, or reading the root would rather keep out of its context. Availability, a low price, task size, an unused role, or a graph node are not reasons, and tightly coupled work or work already done is not delegated. Before the first dispatch the root sets a finite allowance of launches and retries within its actual authority, and for each helper notes what it returns, how it will be verified, and the benefit — without inventing savings figures. The root stays accountable for framing, integration, validation, and the final answer, and direct work waives none of the skill, reference, graph, or verification requirements.
 
 ## Writing an assignment that works
 
@@ -104,6 +102,7 @@ The second one will come back with something confident and probably wrong, and y
 - **Evidence required** — name the artifacts: paths, symbols, command output, reproduction steps, citations.
 - **Acceptance condition** — how you will decide the result is good.
 - **Stop conditions** — the situations where stopping beats continuing.
+- **Skills** — the applicable skills, each with its entrypoint path, to read before the covered work. The bundled roles' `tools` allowlists omit `Skill`, so a helper cannot discover or invoke a skill itself.
 - **Write ownership** — for any subagent that edits, the exact files it owns. Concurrent writers must never share a file.
 - **Workspace** — the current one, unless the root has issued a worktree permit.
 - **Model** — the role's model, explicit on the call: `haiku` for a lookup role, `sonnet` for a judgment role. The role's frontmatter supplies its effort; there is no per-call effort parameter, so use the bundled role rather than a built-in agent type.
@@ -118,7 +117,7 @@ Sequence them only for a real dependency: the second genuinely cannot start with
 
 Before running writers in parallel, check that their file ownership is disjoint. When it is not, serialize them. A separate worktree is not the fix for overlapping writes — it converts a merge conflict into a harder merge conflict later.
 
-Claude Code enforces a concurrent-subagent limit (20 by default) and fails a spawn beyond it. That is backpressure: let running work finish rather than queuing speculative work.
+Claude Code enforces a concurrent-subagent limit (20 by default) and fails a spawn beyond it. That is backpressure: let running work finish rather than queuing speculative work. Every launch counts against the allowance; expand it only for a newly discovered dependency, an invalidated gate, or a changed user scope, and record why — a node count is not a billing cap, and nothing enforces the accounting for you.
 
 ## Nesting
 
@@ -132,7 +131,7 @@ layer 2   leaves dispatched by local-orchestrator — cannot spawn
 
 `local-orchestrator` may dispatch immediately; there is no flag to verify first. The cap is enforced by the leaf definitions carrying `disallowedTools: Agent`, optionally reinforced by setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2`. See `model-routing.md` for detail.
 
-Use `local-orchestrator` sparingly. It earns its layer only when a slice genuinely fans out into independent parts whose intermediate output you do not want. When one worker can do the slice, dispatch that worker directly.
+Assistance is flat by default — a helper does its bounded work without spawning. `local-orchestrator` is the one authorized nesting workflow, and the root chooses it explicitly. It earns its layer only when a slice genuinely fans out into independent parts whose intermediate output you do not want. When one worker can do the slice, dispatch that worker directly.
 
 ## Accepting the work
 
@@ -143,13 +142,14 @@ Verify:
 - The acceptance condition is met, by evidence rather than assertion.
 - Named paths and symbols exist and say what the result says they say. Spot-check at least the load-bearing ones.
 - Nothing outside the assigned scope changed.
-- Validation ran, or its absence is stated with a reason.
+- Validation ran, or its absence is stated with a reason. A reason for omitting a check is not a passing check.
+- The skills the assignment named were applied — their required outputs are present, not just a mention.
 - Any edits are minimal and traceable to the assignment.
 - The final diff — read it yourself.
 
 When two subagents disagree, resolve it with primary evidence: the code, the tests, the schema, the logs, the runtime behavior. Do not average their conclusions or prefer the more confident one.
 
-When a subagent fails, one retry with a sharper assignment is reasonable. A second identical failure is information — report the blocker rather than retrying again. A retry or a replacement stays on the role's route; do not rescue a failing assignment by escalating to `opus` or `fable` or by raising effort, and do not accept a substituted model as if it were the role's.
+When a subagent fails, one retry with a sharper assignment is reasonable — after stating the failure evidence and what will change, and counting it against the allowance. A second identical failure is information — report the blocker rather than retrying again. Prefer a bounded correction or finishing the piece yourself over a chain of reviewers. A retry or a replacement stays on the role's route; do not rescue a failing assignment by escalating to `opus` or `fable` or by raising effort, and do not accept a substituted model as if it were the role's.
 
 Never accept a conclusion solely because it sounds confident.
 
@@ -157,10 +157,10 @@ Never accept a conclusion solely because it sounds confident.
 
 Start in the current workspace. The auxiliary-worktree budget starts at zero and is separate from anything to do with subagents. Read-only subagents and disjoint writers share the workspace safely.
 
-Only the root may authorize `isolation: worktree` or create an auxiliary checkout, and only after recording the required base ref — an isolated subagent branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` says otherwise. Descendants use their assigned workspace and report isolation needs upward. See `worktrees.md`.
+Only the root may authorize `isolation: worktree` or create an auxiliary checkout, and only after recording the required base ref — an isolated subagent branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` says otherwise. Descendants use their assigned workspace and report isolation needs upward. The `worktree-lifecycle` skill holds the full rules.
 
 ## Independent sessions are not subagents
 
 A separate Claude Code session has its own history, branch, worktree, and ownership. You cannot dispatch it, and its summary is not evidence.
 
-When independent sessions are working on related areas, use the `multi-session-coordination` skill and `multi-session-coordination.md` before adding more parallel work. More subagents will not resolve an ownership conflict between sessions.
+When independent sessions are working on related areas, use the `multi-session-coordination` skill before adding more parallel work. More subagents will not resolve an ownership conflict between sessions.

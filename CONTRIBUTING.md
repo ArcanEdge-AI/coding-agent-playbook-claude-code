@@ -35,7 +35,7 @@ Avoid adding:
 - Prefer behavior and decision rules over rigid command sequences.
 - Keep examples generic and safe for public reuse.
 
-For files agents read directly (`agents/`, `references/`, `skills/`, `custom-instructions/`), also:
+For files agents read directly (`agents/`, `skills/` including each skill's packaged references and templates, `custom-instructions/`), also:
 
 - Put a rule where its actor can act on it. Routing rules belong in the caller's documentation, not in every leaf agent's system prompt.
 - Lead with the decision, then the rule, then the exception.
@@ -43,7 +43,7 @@ For files agents read directly (`agents/`, `references/`, `skills/`, `custom-ins
 - Explain the mechanism when it changes behavior.
 - Use Claude Code's own vocabulary — `Agent`, `subagent_type`, `model`, `effort`, `permissionMode`, `tools`, `disallowedTools`, plan mode — rather than invented terms.
 
-Keep intact: root-session ownership, the fixed per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles), the two-layer subagent bound, capability boundaries, the task-local worktree lifecycle, and the engineering-design standard (smallest complete solution, earned abstractions, recorded material debt).
+Keep intact: root-session ownership and direct-first execution (delegation optional, bounded, and flat by default), the fixed per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles), the two-layer subagent bound, capability boundaries, the task-local worktree lifecycle, and the engineering-design standard (smallest complete solution, earned abstractions, recorded material debt).
 
 Compare generic policy changes with the companion Codex playbook. Align them, or name the concrete Claude Code capability that requires the difference.
 
@@ -65,9 +65,9 @@ Several rules here depend on documented Claude Code behavior. An earlier revisio
 
 CI runs the automated checks. Run them locally first with `bash scripts/validate.sh`.
 
-- `bash -n install/install.sh` passes, and a full-mode install into a temporary `CLAUDE_CONFIG_DIR` succeeds and exits 0.
-- With `pwsh` available, `install.sh` and `install.ps1` produce a byte-identical Claude Code home in both modes. CI checks this; `scripts/validate.sh` skips it when `pwsh` is absent.
-- Markdown fenced code blocks are balanced, and every repository path referenced in Markdown exists.
+- `install/install.py` compiles, and a full-mode install into a temporary `CLAUDE_CONFIG_DIR` succeeds and exits 0; a repeat install is a no-op and a dry run creates nothing.
+- `install.sh` and `install.ps1` stay thin launchers for `install.py`. With `pwsh` available they produce a byte-identical Claude Code home in both modes; CI checks this, and `scripts/validate.sh` skips it when `pwsh` is absent.
+- Markdown fenced code blocks are balanced, every repository path referenced in Markdown exists, and every `references/...` path written inside a skill resolves inside that skill's package. Nothing outside `skills/` refers to a top-level `references/` path.
 - `SKILL.md` files include `name` and `description` frontmatter.
 - `agents/*.md` include `name`, `description`, `model`, `permissionMode`, `tools`, and `disallowedTools`; the two lookup roles use `model: haiku` with no `effort`, and the four judgment roles use `model: sonnet` with `effort: high`.
 - Read-only roles use `permissionMode: plan` and list neither `Edit` nor `Write`; only `local-orchestrator` lists `Agent` in `tools`; the other five list `Agent` in `disallowedTools`; no bundled agent sets `isolation: worktree`.

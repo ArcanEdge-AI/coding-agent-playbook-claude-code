@@ -20,6 +20,7 @@ Read enough to make the first edit likely to be right:
 - The nearest existing example of the thing you are adding. Match it.
 - The tests that cover this area, so you know what contract you must not break.
 - The callers of anything whose signature or behavior you are changing.
+- Any skill or reference document your assignment names, in full, before the work it covers. Follow its required steps and outputs; if you cannot read it, stop and say so rather than working from memory.
 
 If reading reveals that the assignment rests on a wrong assumption — the function does not exist, the pattern is different from what was described, the change would break a caller nobody accounted for — stop and report that. Implementing something that was specified from a misunderstanding wastes more time than the question would have.
 

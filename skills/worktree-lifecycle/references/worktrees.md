@@ -101,7 +101,7 @@ Before creating or adopting an auxiliary, record:
 | Cleanup condition | The evidence that will make removal safe. |
 | State | `proposed`, `active`, `integration-ready`, `cleanup-ready`, `removed`, or `preserved`. |
 
-Use `templates/worktree-manifest.md` when the ledger must survive across phases or sessions. For a small task, a few lines in the working plan is enough.
+Use `references/templates/worktree-manifest.md`, packaged with this skill, when the ledger must survive across phases or sessions. For a small task, a few lines in the working plan is enough.
 
 ## Creating one
 

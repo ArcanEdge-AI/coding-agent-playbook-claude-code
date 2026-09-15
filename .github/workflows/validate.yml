@@ -25,13 +25,18 @@ jobs:
 
       - name: Run playbook validation
         # ubuntu-latest ships pwsh, so scripts/validate.sh also runs the
-        # cross-installer parity check here.
+        # launcher parity check here.
         run: bash scripts/validate.sh
 
   powershell:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
 
       - name: Parse install.ps1
         shell: pwsh
@@ -46,7 +51,7 @@ jobs:
           }
           Write-Host "install.ps1 parses cleanly."
 
-      - name: Full install into a temporary home
+      - name: Full install through the PowerShell launcher
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
@@ -56,15 +61,29 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "install.ps1 exited $LASTEXITCODE" }
           foreach ($p in @(
             'CLAUDE.md',
-            'references/model-routing.md',
-            'references/engineering-design.md',
             'agents/local-orchestrator.md',
-            'skills/senior-code-review/SKILL.md'
+            'skills/senior-code-review/SKILL.md',
+            'skills/subagent-orchestration/references/model-routing.md',
+            'skills/reference-doc-routing/references/engineering-design.md',
+            'skills/task-graph-orchestration/references/templates/task-graph.md'
           )) {
             $full = Join-Path $home2 $p
             if (-not (Test-Path -LiteralPath $full)) { throw "missing $full" }
           }
+          if (Test-Path -LiteralPath (Join-Path $home2 'references')) { throw "installer created a top-level references directory" }
           Write-Host "install.ps1 full install succeeded."
+
+      - name: Dry run through the PowerShell launcher creates nothing
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $home3 = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
+          $env:CLAUDE_CONFIG_DIR = $home3
+          $out = ./install/install.ps1 -Full -DryRun
+          if ($LASTEXITCODE -ne 0) { throw "install.ps1 -DryRun exited $LASTEXITCODE" }
+          if (Test-Path -LiteralPath $home3) { throw "dry run created $home3" }
+          if (-not ($out -match 'Dry run complete. No files were changed.')) { throw "dry run did not report that nothing changed" }
+          Write-Host "install.ps1 dry run created nothing."
 
       - name: Fail loudly on a missing managed file
         shell: pwsh
@@ -72,7 +91,7 @@ jobs:
           $ErrorActionPreference = 'Continue'
           $clone = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
           New-Item -ItemType Directory -Force -Path $clone | Out-Null
-          foreach ($d in @('agents','references','skills','custom-instructions','install')) {
+          foreach ($d in @('agents','skills','custom-instructions','install')) {
             Copy-Item -Recurse -Path $d -Destination (Join-Path $clone $d)
           }
           Remove-Item -Recurse -Force (Join-Path $clone 'skills/senior-code-review')

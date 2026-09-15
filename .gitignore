@@ -11,6 +11,10 @@ Thumbs.db
 *.bak
 *.orig
 
+# Python byte-code
+__pycache__/
+*.pyc
+
 # Generated archives
 *.zip
 *.tar.gz

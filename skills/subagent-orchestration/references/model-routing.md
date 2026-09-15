@@ -118,6 +118,8 @@ Getting this right in your head matters, because an earlier version of this docu
 
 A nested dispatch uses the same per-role route as a direct one: `local-orchestrator` passes each leaf its role's model, and the leaf's frontmatter supplies its effort. Depth controls authority and spawning; it never changes the route.
 
+Depth is also not the default. Ordinary assistance is flat: the root dispatches a helper, which does its bounded work without spawning. `local-orchestrator` is the one authorized nesting workflow, and the root chooses it explicitly for a slice with genuine fan-out.
+
 ## Recommended operator settings
 
 A user-settings entry for an operator who wants the cap, the fallback model, and the teammate behavior pinned at runtime as well:
@@ -152,7 +154,7 @@ Shared execution is the default and the auxiliary-worktree budget starts at zero
 
 The reason is specific and worth stating plainly: **a subagent with `isolation: worktree` gets a worktree branched by default from your repository's default branch, not from the parent session's `HEAD`.** An isolated worker can therefore start without the changes the current session just made, and produce work against the wrong base. The `worktree.baseRef` setting controls this — `"head"` branches from the current `HEAD` instead.
 
-So isolation is a root decision, made with the base ref recorded and verified. `isolation` can also be passed on an `Agent` call directly, which is exactly why descendants are told never to do that. See `worktrees.md` for the full lifecycle.
+So isolation is a root decision, made with the base ref recorded and verified. `isolation` can also be passed on an `Agent` call directly, which is exactly why descendants are told never to do that. The `worktree-lifecycle` skill holds the full lifecycle.
 
 ## What to record before dispatching
 
