@@ -43,7 +43,7 @@ For files agents read directly (`agents/`, `skills/` including each skill's pack
 - Explain the mechanism when it changes behavior.
 - Use Claude Code's own vocabulary — `Agent`, `subagent_type`, `model`, `effort`, `permissionMode`, `tools`, `disallowedTools`, plan mode — rather than invented terms.
 
-Keep intact: root-session ownership and direct-first execution (delegation optional, bounded, and flat by default), the fixed per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles), the two-layer subagent bound, capability boundaries, the task-local worktree lifecycle, and the engineering-design standard (smallest complete solution, earned abstractions, recorded material debt).
+Keep intact: root-session ownership and direct-first execution (delegation optional, bounded, and flat by default), the separation of the branch, worktree, session, and dependency lifecycles, the fixed per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles), the two-layer subagent bound, capability boundaries, the task-local worktree lifecycle, and the engineering-design standard (smallest complete solution, earned abstractions, recorded material debt).
 
 Compare generic policy changes with the companion Codex playbook. Align them, or name the concrete Claude Code capability that requires the difference.
 

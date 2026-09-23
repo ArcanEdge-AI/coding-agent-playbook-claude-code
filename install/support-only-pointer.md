@@ -9,6 +9,7 @@ Supporting reference documents ship inside the skill that owns them, under the C
 - `skills/subagent-orchestration/references/model-routing.md` — the fixed per-role route (Haiku for lookup roles, Sonnet at high for judgment roles), how Claude Code resolves a subagent model and what overrides it, effort semantics, permission modes, tool boundaries, and nesting depth
 - `skills/subagent-orchestration/references/subagents.md` — when to delegate, which role fits, how to write an assignment, and how to verify a result before accepting it
 - `skills/task-graph-orchestration/references/templates/task-graph.md` — the task-graph template
+- `skills/feature-branch-lifecycle/references/branching-rule.md` — branch-model detection, the development to feature-integration to integration to production sequence, complete-feature validation, temporary-branch cleanup gates, and the authority each step needs
 - `skills/worktree-lifecycle/references/worktrees.md` — task-local worktree budgeting, the base-ref trap, integration, cleanup, and preservation
 - `skills/worktree-lifecycle/references/templates/worktree-manifest.md` — the worktree-manifest template
 - `skills/multi-session-coordination/references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
@@ -18,6 +19,7 @@ Reusable Claude Code skills live under the Claude Code home skills directory:
 
 - `skills/subagent-orchestration/SKILL.md`
 - `skills/task-graph-orchestration/SKILL.md`
+- `skills/feature-branch-lifecycle/SKILL.md`
 - `skills/worktree-lifecycle/SKILL.md`
 - `skills/multi-session-coordination/SKILL.md`
 - `skills/reference-doc-routing/SKILL.md`
@@ -39,6 +41,8 @@ Each bundled subagent has a fixed route that does not follow the model selected 
 Claude Code allows nested subagents by default, up to three layers below the main conversation. This playbook uses at most two, and ordinary assistance is flat: a helper does its bounded work without spawning, and `local-orchestrator` is the one authorized nesting workflow, chosen explicitly by the root for a slice with genuine fan-out. `local-orchestrator` may dispatch immediately — there is no capability flag to verify first. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`. Setting `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH` to `2` tightens the runtime default from 3 to 2 and is optional hardening, not a precondition; do not change it from inside a task. Keep every child at or below its parent in permissions, tools, scope, workspace, and authority; model and effort stay fixed per role at every layer.
 
 Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
+
+Before feature work that may span more than one development branch, load the `feature-branch-lifecycle` skill and resolve the repository's real integration and production branch names before creating the branch structure. Development branches merge into a feature integration branch, the complete validated feature promotes from there to the integration branch through one pull request, and production promotes only from the integration branch under separate authority. Do not assemble an unfinished feature on a long-lived integration branch, skip a promotion layer, or invent a missing long-lived branch. Verify every cleanup gate immediately before deleting a temporary branch, preserve and report any branch whose gates do not pass, and never delete a permanent integration or production branch.
 
 The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts or the helper launch allowance. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
 

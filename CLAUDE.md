@@ -12,6 +12,7 @@ Repository-specific guidance here overrides the global instructions where it is 
 - Prefer concise, practical guidance over theory — but do not sacrifice necessary detail for brevity. These files are read by agents that need the specifics.
 - Keep the root session accountable for framing, delegation, coordination, integration, validation, and the final report.
 - Keep the subagent lineup at `local-orchestrator`, `read-only-explorer`, `senior-reviewer`, `docs-researcher`, `test-triager`, and `isolated-worker`.
+- Keep the branch, worktree, session, and dependency lifecycles separate. `feature-branch-lifecycle` owns branch topology, promotion, and temporary-branch cleanup; `worktree-lifecycle` owns checkouts; `multi-session-coordination` owns concurrent ownership; `task-graph-orchestration` owns dependencies between work outcomes. A branch is not a worktree, a branch is not a session, and a feature integration branch is not automatically a graph node.
 - Keep the operating model direct-first: the root session implements by default, including substantial multi-file work; delegation is optional, bounded, flat by default, and never mandatory; skills and dependency-graph planning apply whether one agent or several do the work. Do not reintroduce a rule that requires a helper on every task, a direct-execution exception statement, or one helper per graph node.
 - Keep every skill self-contained: a skill's `SKILL.md` and every reference or template it depends on live under that skill's directory and install together, and a path written inside a skill resolves against the skill's package root. There is no top-level `references/` directory. A cross-skill need is met by naming the owning skill, never by reaching into its files or keeping a second copy.
 
@@ -68,7 +69,8 @@ CI runs exactly this script (`.github/workflows/validate.yml`), plus a PowerShel
 
 Automated checks (CI enforces all of these):
 
-- Every `SKILL.md` has YAML frontmatter with `name` and `description`.
+- Every `SKILL.md` has YAML frontmatter with `name` and `description`, and its `name` matches its directory. Every directory under `skills/` has a `SKILL.md`, and no file sits loose directly under `skills/`.
+- Skill packages are discovered from the tree by both the installer and the validator, so adding one requires no change to either. Do not reintroduce a hardcoded skill list.
 - Every `agents/*.md` has `name`, `description`, `model`, `permissionMode`, `tools`, and `disallowedTools`. `read-only-explorer` and `docs-researcher` use `model: haiku` and no `effort`; the other four use `model: sonnet` and `effort: high`.
 - `read-only-explorer`, `docs-researcher`, and `senior-reviewer` use `permissionMode: plan` and list neither `Edit` nor `Write`.
 - `test-triager`, `isolated-worker`, and `local-orchestrator` use `permissionMode: default`.
@@ -86,6 +88,7 @@ Manual review:
 - Design-principle wording in `custom-instructions/`, `agents/`, and `skills/` stays consistent with `skills/reference-doc-routing/references/engineering-design.md`: smallest complete solution, earned abstractions rather than a blanket ban on single-use ones, root-cause fixes within scope, and material technical debt recorded with scope, rationale, and follow-up condition.
 - Install docs and scripts reference the current file set.
 - No file reintroduces mandatory delegation, a direct-execution exception statement, one helper per graph node, graph use that requires delegation, or permission to skip a matching skill for direct or familiar work.
+- Branch guidance keeps the detailed procedure in `skills/feature-branch-lifecycle/references/branching-rule.md` rather than the global instructions, detects real branch names instead of assuming `main` or `staging`, never invents a missing long-lived branch, never lets a development branch bypass the feature integration branch, requires complete-feature validation before promotion, gates every temporary-branch deletion on verified evidence and explicit authority, preserves and reports a branch whose gates fail, and never deletes a permanent branch.
 - The installer defaults to full mode, maintains the managed-file manifest, retires only unchanged formerly managed files (including loose `references/` files left by earlier releases), writes backups outside the managed trees, and preserves customized or unrelated files.
 - Generic policy changes were compared with the companion Codex playbook.
 - The final diff contains no paths, schemas, model names, or commands belonging to another coding-agent environment.

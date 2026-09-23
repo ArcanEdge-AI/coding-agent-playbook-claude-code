@@ -145,6 +145,8 @@ For each relevant work item, record:
 - project directory and repository
 - branch or worktree
 - worktree class and task-local permit, where applicable
+- branch role, base branch, and permitted merge target
+- promotion state and cleanup eligibility
 - current status
 - files and modules affected
 - APIs, events, routes, or shared interfaces affected
@@ -160,7 +162,7 @@ For each relevant work item, record:
 
 Keep confirmed facts visibly separate from inference.
 
-When a task proposes or owns an auxiliary worktree, use the `worktree-lifecycle` skill. A coordinating session may clean only auxiliaries its own task created or explicitly adopted. Host-managed, user-managed, and other-session worktrees stay preserved unless ownership transfers on primary evidence.
+When a task proposes or owns an auxiliary worktree, use the `worktree-lifecycle` skill. When participating branches must converge through one feature integration branch, or promotion state or temporary-branch cleanup is in scope, use the `feature-branch-lifecycle` skill. Branch cleanup and worktree cleanup are different lifecycles with different gates; do not conflate them. A coordinating session may clean only auxiliaries its own task created or explicitly adopted. Host-managed, user-managed, and other-session worktrees stay preserved unless ownership transfers on primary evidence.
 
 ## Conflict categories
 

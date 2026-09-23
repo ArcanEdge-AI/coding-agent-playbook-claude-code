@@ -14,7 +14,8 @@ WRITE_AGENTS="test-triager isolated-worker local-orchestrator"
 ALL_AGENTS="$READ_ONLY_AGENTS $WRITE_AGENTS"
 # Lookup roles run on Haiku, which does not support effort; judgment roles run on Sonnet at high.
 HAIKU_AGENTS="read-only-explorer docs-researcher"
-SKILLS="multi-session-coordination reference-doc-routing senior-code-review subagent-orchestration task-graph-orchestration worktree-lifecycle"
+# Skill packages are discovered, not listed, so adding one needs no change here.
+SKILLS="$(for d in skills/*/; do [[ -d "$d" ]] && basename "$d"; done | sort)"
 
 # The installer runs as a native program. Under Git Bash on Windows a POSIX
 # temp path would not be the same location for Python, so hand it a native path.
@@ -61,14 +62,20 @@ done
 (( FAILURES == 0 )) && pass "six agent definitions conform"
 
 echo "== skills =="
+skill_count=0
 for name in $SKILLS; do
   f="skills/$name/SKILL.md"
-  [[ -f "$f" ]] || { fail "missing $f"; continue; }
+  skill_count=$((skill_count + 1))
+  [[ -f "$f" ]] || { fail "skills/$name has no SKILL.md; every directory under skills/ is a package"; continue; }
   grep -q '^name:' "$f" || fail "$f: missing 'name' frontmatter"
   grep -q '^description:' "$f" || fail "$f: missing 'description' frontmatter"
+  grep -Eq "^name:[[:space:]]*$name[[:space:]]*$" "$f" || fail "$f: name does not match its directory"
 done
+while IFS= read -r loose; do
+  [[ -z "$loose" ]] || fail "loose file directly under skills/: $loose; every file belongs to a package"
+done < <(find skills -mindepth 1 -maxdepth 1 -type f)
 [[ -e references ]] && fail "a top-level references/ directory exists; every reference belongs inside its owning skill"
-pass "skill frontmatter checked"
+pass "$skill_count skill packages checked"
 
 echo "== yaml frontmatter parses =="
 python3 - <<'PY'
@@ -199,6 +206,14 @@ grep -q '^<!-- coding-agent-playbook-claude-code:start -->$' "$HOME1/CLAUDE.md" 
 n=$(grep -c "^skills$(printf '\t')" "$HOME1/.coding-agent-playbook-claude-code-managed-files.tsv")
 m=$(git ls-files skills | wc -l)
 [[ "$n" == "$m" ]] && pass "manifest lists all $m skill files" || fail "manifest lists $n skill files, repository has $m"
+for name in $SKILLS; do
+  [[ -f "$HOME1/skills/$name/SKILL.md" ]] || fail "skill package not installed: $name"
+done
+while IFS= read -r ref; do
+  rel="${ref#skills/}"
+  [[ -f "$HOME1/skills/$rel" ]] || fail "packaged skill file not installed: $rel"
+done < <(git ls-files 'skills/*/references/*')
+pass "every discovered skill package and packaged file is installed"
 
 echo "== a second identical install is a no-op =="
 CLAUDE_CONFIG_DIR="$(native_path "$HOME1")" bash install/install.sh --full > "$TMP_HOME/install2.log" 2>&1
@@ -279,17 +294,44 @@ else
   fail "customized formerly managed file was removed or not reported"
 fi
 
-echo "== installer fails loudly on a missing managed file =="
+echo "== installer fails loudly on an incoherent skill package =="
 CLONE="$TMP_HOME/clone"
 mkdir -p "$CLONE"
 cp -r agents skills custom-instructions install "$CLONE/"
-rm -rf "$CLONE/skills/senior-code-review"
+
+# A package missing a file its own SKILL.md points at.
+rm -f "$CLONE/skills/worktree-lifecycle/references/worktrees.md"
 if CLAUDE_CONFIG_DIR="$(native_path "$TMP_HOME/home4")" bash "$CLONE/install/install.sh" --full >/dev/null 2>&1; then
-  fail "installer exited 0 despite a missing managed file"
+  fail "installer exited 0 despite a packaged reference its SKILL.md names being absent"
 else
-  pass "installer exits non-zero when a managed file is missing"
+  pass "installer exits non-zero when a packaged reference is missing"
 fi
 [[ -e "$TMP_HOME/home4" ]] && fail "installer wrote into the home before its source check failed"
+
+# A directory under skills/ that is not a package. Put back the file the
+# previous case removed so this run fails for the new reason, not the old one.
+cp skills/worktree-lifecycle/references/worktrees.md "$CLONE/skills/worktree-lifecycle/references/worktrees.md"
+mkdir -p "$CLONE/skills/not-a-package"
+printf 'no frontmatter here
+' > "$CLONE/skills/not-a-package/notes.md"
+if CLAUDE_CONFIG_DIR="$(native_path "$TMP_HOME/home5")" bash "$CLONE/install/install.sh" --full >/dev/null 2>&1; then
+  fail "installer exited 0 despite a directory under skills/ with no SKILL.md"
+else
+  pass "installer exits non-zero when a directory under skills/ has no SKILL.md"
+fi
+[[ -e "$TMP_HOME/home5" ]] && fail "installer wrote into the home before rejecting the incoherent package"
+
+# A loose file sitting directly under skills/, belonging to no package.
+rm -rf "$CLONE/skills/not-a-package"
+printf 'stray
+' > "$CLONE/skills/loose.md"
+if CLAUDE_CONFIG_DIR="$(native_path "$TMP_HOME/home6")" bash "$CLONE/install/install.sh" --full >/dev/null 2>&1; then
+  fail "installer exited 0 despite a loose file directly under skills/"
+else
+  pass "installer exits non-zero when a file sits loose under skills/"
+fi
+[[ -e "$TMP_HOME/home6" ]] && fail "installer wrote into the home before rejecting the loose file"
+rm -f "$CLONE/skills/loose.md"
 
 echo "== launcher parity (skipped without pwsh) =="
 if command -v pwsh >/dev/null 2>&1; then

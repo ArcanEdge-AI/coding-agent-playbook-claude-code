@@ -5,7 +5,7 @@ Use this when several Claude Code sessions are working on related features in th
 ```markdown
 Coordinate all active work for the current project.
 
-Use the `multi-session-coordination` skill and the detailed rules packaged with it. Use the `worktree-lifecycle` skill if any participating task owns or proposes an auxiliary worktree.
+Use the `multi-session-coordination` skill and the detailed rules packaged with it. Use the `worktree-lifecycle` skill if any participating task owns or proposes an auxiliary worktree. Use the `feature-branch-lifecycle` skill if participating development branches must converge through one feature integration branch, or if promotion state or temporary-branch cleanup is in scope.
 
 Detect the project directory, repository, default branch, active branch, worktree, and applicable CLAUDE.md instructions from the environment. Do not ask me for anything you can determine reliably yourself.
 
@@ -18,6 +18,8 @@ Use `Project - Three-to-Four-Word Description` for new session names. Detect the
 Begin with sessions active in the previous 72 hours where session history is accessible. Include older work when evidence shows it remains unmerged, incomplete, blocked, contract-relevant, or otherwise active. Repository state outranks session recency.
 
 Label every work item explicitly as a directly reviewed session, a direct session report, session-metadata inference, repository-inferred work, user-supplied, or potentially missing. Do not claim you reviewed a session when you inspected only its branch, pull request, or diff.
+
+For each participating branch, record its role, base branch, permitted merge target, promotion state, and cleanup eligibility. Mapping a branch does not imply authority to open or merge a pull request, delete it locally or remotely, or promote production; name the missing authority instead. Branch cleanup is not worktree cleanup.
 
 Classify relevant checkouts as host-managed primary, user-managed existing, or task-created auxiliary. Do not infer cleanup authority from age, inactivity, or a clean status. Each owning task integrates and removes its own auxiliaries when the gates pass, or preserves them with exact path, owner, branch or HEAD, blocker, and next action. Do not defer that to scheduled automation, and do not remove a host-managed, user-managed, or other session's worktree.
 

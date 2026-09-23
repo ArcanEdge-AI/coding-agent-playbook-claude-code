@@ -29,6 +29,10 @@ $CLAUDE_HOME/
     test-triager.md
     isolated-worker.md
   skills/
+    feature-branch-lifecycle/
+      SKILL.md
+      references/
+        branching-rule.md
     subagent-orchestration/
       SKILL.md
       references/
@@ -83,7 +87,7 @@ Full install:
 
 - installs the global coding-agent instructions into `$CLAUDE_HOME/CLAUDE.md`
 - copies the custom Claude Code subagent definitions into `$CLAUDE_HOME/agents/`
-- copies the six complete skill packages, references and templates included, into `$CLAUDE_HOME/skills/`
+- copies every complete skill package, references and templates included, into `$CLAUDE_HOME/skills/`
 
 The global instruction body is always installed inside one clearly marked Coding Agent Playbook — Claude Code Edition section. Content outside the markers is preserved. The installer adds the marked section when both markers are absent, or replaces exactly one well-ordered marked section after a timestamped backup. If only one marker exists, either marker is duplicated, or the end appears before the start, it stops without writing the file. A legacy `claude-code-agent-playbook` marker pair is migrated in place.
 
@@ -195,7 +199,8 @@ Files that must exist:
 - `$CLAUDE_HOME/CLAUDE.md` — present, or intentionally left as a pointer-only file
 - `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` — lists every current managed support file exactly once
 - `$CLAUDE_HOME/agents/` — `local-orchestrator.md`, `read-only-explorer.md`, `senior-reviewer.md`, `docs-researcher.md`, `test-triager.md`, `isolated-worker.md`
-- `$CLAUDE_HOME/skills/` — `subagent-orchestration`, `task-graph-orchestration`, `worktree-lifecycle`, `multi-session-coordination`, `reference-doc-routing`, `senior-code-review`, each with `SKILL.md`
+- `$CLAUDE_HOME/skills/` — `subagent-orchestration`, `task-graph-orchestration`, `worktree-lifecycle`, `feature-branch-lifecycle`, `multi-session-coordination`, `reference-doc-routing`, `senior-code-review`, each with `SKILL.md`
+- `$CLAUDE_HOME/skills/feature-branch-lifecycle/references/branching-rule.md`
 - `$CLAUDE_HOME/skills/subagent-orchestration/references/` — `model-routing.md`, `subagents.md`
 - `$CLAUDE_HOME/skills/task-graph-orchestration/references/templates/task-graph.md`
 - `$CLAUDE_HOME/skills/worktree-lifecycle/references/` — `worktrees.md`, `templates/worktree-manifest.md`
@@ -216,6 +221,7 @@ Frontmatter and policy:
 Package integrity:
 
 - Every `references/...` path written inside a skill resolves inside that skill's installed package.
+- Every directory under `skills/` is installed as a complete package. The installer discovers packages from the source tree rather than from a list, so a new skill needs no installer change; a directory without a `SKILL.md`, or a loose file directly under `skills/`, fails the run.
 - No installed skill depends on a top-level `references/` directory, and the installer does not create one.
 - Every reference and template appears once, under one owning skill.
 
@@ -226,6 +232,7 @@ Content:
 - Routing guidance states that nesting is enabled by default at three layers, that this playbook caps at two, and that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition.
 - Routing guidance states that `effort` is a role property that overrides session effort, not a ceiling inherited from the caller, that there is no per-invocation effort parameter, and that Haiku does not support `effort`.
 - Task-graph guidance treats nodes as work outcomes with dependencies; a node never implies a helper, and the helper launch allowance, graph dependencies, approval gates, and worktree permits are distinct controls.
+- Branch guidance routes applicable multi-branch feature work to `feature-branch-lifecycle`, keeps the detailed procedure in that skill's packaged reference rather than the global instructions, and states that the sequence grants no authority to open or merge pull requests, delete branches, or promote production.
 - `skills/reference-doc-routing/references/engineering-design.md` is installed and the global instructions point to it for non-trivial design decisions.
 - Worktree guidance states that an isolated subagent branches from the repository default branch rather than the parent's `HEAD` unless `worktree.baseRef` is `"head"`.
 - No non-Claude configuration paths, subagent schemas, or command vocabulary were introduced.
@@ -254,6 +261,7 @@ $CLAUDE_HOME/agents/isolated-worker.md
 $CLAUDE_HOME/skills/subagent-orchestration/
 $CLAUDE_HOME/skills/task-graph-orchestration/
 $CLAUDE_HOME/skills/worktree-lifecycle/
+$CLAUDE_HOME/skills/feature-branch-lifecycle/
 $CLAUDE_HOME/skills/multi-session-coordination/
 $CLAUDE_HOME/skills/reference-doc-routing/
 $CLAUDE_HOME/skills/senior-code-review/
