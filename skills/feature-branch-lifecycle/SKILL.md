@@ -1,6 +1,6 @@
 ---
 name: feature-branch-lifecycle
-description: Use when a feature, change, or update may span more than one development branch and has to be assembled, validated, promoted through long-lived integration and production branches, and cleaned up safely. Covers branch-model detection, the promotion sequence, complete-feature validation, the gates that must pass before any temporary branch is deleted, and the authority each step needs. Not for worktree isolation, session ownership, or dependency planning.
+description: Use when a feature, change, or update may use one or more development branches and has to be assembled, validated, promoted through long-lived integration and production branches, and cleaned up safely. Covers branch-model detection, the promotion sequence, complete-feature validation, the gates that must pass before any temporary branch is deleted, and the authority each step needs. Not for worktree isolation, session ownership, or dependency planning.
 ---
 
 # Feature Branch Lifecycle

@@ -22,7 +22,10 @@
   <a href="#formal-task-graph-orchestration">Task Graphs</a> ·
   <a href="#feature-branch-lifecycle">Branch Lifecycle</a> ·
   <a href="#task-local-worktree-lifecycle">Worktrees</a> ·
+  <a href="#evidence-based-legacy-path-retirement">Legacy Paths</a> ·
   <a href="#coordinating-parallel-claude-code-sessions">Parallel Sessions</a> ·
+  <a href="#handing-off-to-a-fresh-session">Handoff</a> ·
+  <a href="#end-of-work-cleanup">Cleanup</a> ·
   <a href="#repository-structure">Structure</a>
 </p>
 
@@ -126,6 +129,8 @@ AI coding agents are powerful, but they often fail in predictable ways:
 
 - They start coding before understanding the codebase.
 - They over-engineer simple requests, or patch symptoms and call the smaller diff simpler.
+- They write a new component or helper when the codebase already has one that fits.
+- They keep a fallback "to be safe", or delete one because a search came back empty.
 - They refactor unrelated code.
 - They trust editor diagnostics over real builds.
 - They skip the skill that covers the task because the task looks familiar.
@@ -152,7 +157,7 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 | Installer | `install/` | One standard-library Python installer, thin Bash and PowerShell launchers, and the support-only pointer text. |
 | Global instructions | `custom-instructions/` | Tool-agnostic behavior rules for elegant, maintainable code. Paste into your global `CLAUDE.md`. |
 | Prompts | `claude-prompts/` | Setup and active-project coordination prompts. |
-| Skills | `skills/` | Seven self-contained packages — task-graph, subagent, worktree, and feature-branch orchestration, session coordination, document routing, and senior review — each shipping the references and templates it depends on: the fixed subagent route, delegation rules, the engineering-design decision aid, worktree lifecycle, the branching rule, session coordination, and the repository documentation templates. |
+| Skills | `skills/` | Ten self-contained packages — task-graph, subagent, worktree, and feature-branch orchestration, session coordination, handoff to a fresh session, end-of-work cleanup, legacy-path retirement, document routing, and senior review — each shipping the references and templates it depends on: the fixed subagent route, delegation rules, the engineering-design decision aid, worktree lifecycle, the branching rule, session coordination, the handoff context contract, the cleanup methodology, and the repository documentation templates. |
 | Custom agents | `agents/` | Claude Code definitions for a bounded local orchestrator, direct workers, and non-spawning execution leaves. |
 | Repository guidance | `CLAUDE.md` | Instructions for maintaining this public playbook repository. |
 
@@ -310,7 +315,7 @@ Run the multi-session coordination workflow first when other Claude Code session
 
 ## Feature Branch Lifecycle
 
-Where a repository runs long-lived integration and production branches, a feature that spans more than one development branch is assembled somewhere. The failure this prevents is assembling it on the long-lived integration branch, or promoting half of it.
+Where a repository runs long-lived integration and production branches, feature work that uses one or more development branches has to be assembled and validated somewhere before it is promoted. The failure this prevents is assembling it on the long-lived integration branch, or promoting half of it.
 
 ```text
 development branches
@@ -373,6 +378,22 @@ skills/worktree-lifecycle/references/templates/worktree-manifest.md
 
 ---
 
+## Evidence-Based Legacy Path Retirement
+
+When an authorized change leaves superseded code, a duplicate writer, an old contract, or a compatibility fallback behind, two opposite mistakes are common: keeping it forever "to be safe", or deleting it because a search came back empty.
+
+The `legacy-path-retirement` skill prefers one authoritative implementation within the affected scope. It keeps a compatibility path only for a demonstrated current dependency or an explicit retention requirement, and it treats a search that finds no caller as an evidence gap rather than proof of non-use — dynamic dispatch, configuration, stored data, and external clients do not show up in a symbol search.
+
+Three decisions stay separate: what happens to the old code (retain, migrate, remove, or defer, on the evidence); what happens to existing data and configuration (preserved or migrated deliberately, and reset only with authority for the exact data); and the correctness safeguards the old path provided — stable references, authorization, validation, persistence integrity, cleanup — which move into the authoritative path instead of keeping the old one alive.
+
+The skill is self-contained in:
+
+```text
+skills/legacy-path-retirement/SKILL.md
+```
+
+---
+
 ## Coordinating Parallel Claude Code Sessions
 
 Subagents are delegated from one root session. Independent Claude Code sessions may already have separate conversation history, branches, worktrees, assumptions, and implementation ownership.
@@ -431,6 +452,55 @@ skills/worktree-lifecycle/SKILL.md
 ```
 
 The optional active-work record gives repositories a local fallback when complete session-history discovery is unavailable. It is advisory and must be verified against current session and repository evidence.
+
+---
+
+## Handing Off to a Fresh Session
+
+When a conversation has run long, compacted several times, or simply needs a clean start, the `handoff` skill carries the material context into a new Claude Code session: the objective and verdict, work and findings, validation and what it does and does not prove, user decisions and who handles git, workspace and workflow state, and the exact next gate. Every material claim is labelled verified current, user-reported, historical, or unverified.
+
+The deliverable is a self-contained seed prompt, plus a durable file when warranted. Starting the new session uses only actions Claude Code supports for a *fresh* continuation:
+
+```text
+claude -n "<title>"    then paste the prompt — the default, in the same checkout
+/clear                 then paste the prompt — this conversation stays resumable with /resume
+```
+
+Resuming, `/branch`, `--fork-session`, and `/fork` all carry the old history, so none of them is a handoff. A background session (`claude --bg`) is used only when the user asks for one: before it edits, it moves into its own worktree branched from the default branch, so uncommitted work does not come along, and it commits and pushes its changes unless it is told who handles git.
+
+Supporting files:
+
+```text
+skills/handoff/SKILL.md
+skills/handoff/references/context-contract.md
+```
+
+---
+
+## End-of-Work Cleanup
+
+Long work leaves debris that nobody remembers after a few compactions: a debug log, an abandoned helper, a compatibility shim for an interface that never shipped. The `session-cleanup` skill runs a deliberate pass at the end of substantial work, over the whole work delta rather than the parts the conversation remembers:
+
+```text
+Verified integration baseline
+    ↓
+Merge base to HEAD, plus staged, unstaged, and untracked work
+    ↓
+Debris, abandoned approaches, speculative compatibility, unnecessary complexity
+    ↓
+The project's own validation pipeline
+    ↓
+Cleaned Up · Validation · Problems Found · Remaining Issues · Final State
+```
+
+Compatibility code needs evidence. Code introduced and superseded within an unmerged branch never shipped, so it goes; compatibility code older than the work goes through `legacy-path-retirement` first. Unrelated changes, including another session's, are preserved. The pass uses no destructive git commands, commits nothing on its own initiative, and routes branch deletion and worktree removal to their own lifecycle skills.
+
+Supporting files:
+
+```text
+skills/session-cleanup/SKILL.md
+skills/session-cleanup/references/post-session-cleanup-methodology.md
+```
 
 ---
 
@@ -504,6 +574,12 @@ skills/reference-doc-routing/references/README.md
     │   ├── SKILL.md
     │   └── references/
     │       └── branching-rule.md
+    ├── handoff/
+    │   ├── SKILL.md
+    │   └── references/
+    │       └── context-contract.md
+    ├── legacy-path-retirement/
+    │   └── SKILL.md
     ├── multi-session-coordination/
     │   ├── SKILL.md
     │   └── references/
@@ -527,6 +603,10 @@ skills/reference-doc-routing/references/README.md
     │           └── testing.md
     ├── senior-code-review/
     │   └── SKILL.md
+    ├── session-cleanup/
+    │   ├── SKILL.md
+    │   └── references/
+    │       └── post-session-cleanup-methodology.md
     ├── subagent-orchestration/
     │   ├── SKILL.md
     │   └── references/
@@ -615,9 +695,13 @@ The root session still decides the design, accepts or rejects the recommendation
 7. Keep the auxiliary-worktree budget at zero unless a real isolation need is
    verified. Reconcile every task-created auxiliary before finishing.
 8. Use the multi-session coordination skill when other sessions own related work,
-   and the feature-branch lifecycle skill when a feature spans several branches
-   and has to be promoted or cleaned up.
-9. Verify the final combined diff and integrated behavior before accepting.
+   and the feature-branch lifecycle skill when feature work uses development
+   branches that have to be integrated, promoted, or cleaned up.
+9. At the end of substantial work, run the session-cleanup pass over the whole
+   work delta, then verify the final combined diff and integrated behavior
+   before accepting.
+10. When the work has to continue in a fresh session, use the handoff skill
+    rather than resuming or forking the old conversation.
 ```
 
 ---

@@ -32,6 +32,7 @@ Document:
 - where new behavior should be added
 - where new behavior should not be added
 - existing patterns to follow
+- shared components, dialogs, hooks, validators, and utilities to reuse before writing new ones, and where they live
 - boundaries between modules/services/packages
 
 ## Change Rules
@@ -42,6 +43,7 @@ Document:
 - generated files
 - dependency policy
 - migration policy
+- compatibility commitments: supported versions, consumers, and deprecation windows
 - release/versioning policy
 
 ## Reference Docs

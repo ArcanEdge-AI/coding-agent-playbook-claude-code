@@ -152,12 +152,19 @@ fi
 rm -f "$PATH_ISSUES"
 
 echo "== no vocabulary from another coding-agent environment =="
-if grep -rnE 'CODEX_HOME|\.codex/|gpt-5\.6-luna|Luna/max|model_reasoning_effort|AGENTS\.md' \
+if grep -rnE 'CODEX_HOME|\.codex/|gpt-5\.6-luna|Luna/max|model_reasoning_effort|AGENTS\.md|openai\.yaml' \
     --include='*.md' --include='*.py' --include='*.sh' --include='*.ps1' --include='*.yml' . \
     | grep -v '^./.git/' | grep -v '^./scripts/validate.sh:'; then
   fail "the files above carry configuration or model vocabulary from another coding-agent environment"
 else
   pass "no foreign environment vocabulary"
+fi
+# A skill ported from another environment can arrive with that environment's
+# per-skill interface metadata. Claude Code does not read it; do not ship it.
+if git ls-files | grep -E '(^|/)openai\.yaml$'; then
+  fail "the files above are another coding-agent environment's skill metadata"
+else
+  pass "no skill metadata from another coding-agent environment"
 fi
 
 echo "== support-only pointer has one source =="

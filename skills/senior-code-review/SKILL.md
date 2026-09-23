@@ -29,9 +29,11 @@ Review the diff you are about to hand over, not the diff you intended to write. 
 
 **Accessibility** — semantics, labels, focus management, contrast, keyboard reachability, for UI changes.
 
-**Maintainability and design** — naming that hides intent; an abstraction, layer, dependency, or piece of state that no concrete current requirement justifies; speculative configurability; a duplicated source of truth or hidden coupling; a symptom patch where a root-cause fix at the correct boundary was in scope; a change that would ripple through unrelated components on a small requirement change; a pattern that fights the surrounding code.
+**Maintainability and design** — naming that hides intent; new code that duplicates a component, dialog, hook, validator, or utility the project already had and the change could have reused or extended; an abstraction, layer, dependency, or piece of state that no concrete current requirement justifies; speculative configurability; a duplicated source of truth or hidden coupling; a symptom patch where a root-cause fix at the correct boundary was in scope; a change that would ripple through unrelated components on a small requirement change; a pattern that fights the surrounding code.
 
 **Completeness** — the integration and verification the change needed: an unconverted caller, a missed call site, a check that was required but never run. A smaller diff that leaves these behind is unfinished, not simpler.
+
+**Legacy paths and data** — a compatibility path or fallback kept without a demonstrated dependency or explicit retention requirement, or removed while a consumer is still unresolved; code retirement that discards useful data or configuration without authority, or drops a correctness safeguard the old path provided.
 
 **Unrecorded tradeoffs** — material technical debt (a compatibility shim, a staged migration, a deferred cleanup) accepted without its scope, rationale, and follow-up condition written into the plan, the change description, or the project's docs. Minor implementation choices do not need this; material ones do.
 

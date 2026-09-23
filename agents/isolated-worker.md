@@ -29,10 +29,11 @@ If reading reveals that the assignment rests on a wrong assumption — the funct
 Write the smallest complete change that fits the codebase. Complete means integrated and verified; smallest means the least new machinery, not the shortest diff.
 
 - Match the existing architecture, naming, error handling, and formatting. Local consistency beats your own preferences.
-- Prefer the utility, helper, or pattern that already exists over a new one.
+- Before writing new code, look for a component, dialog, hook, validator, utility, or interaction pattern the project already has for the job, and reuse, compose, or extend it when it fits. Create shared code only for a current need, a real boundary or invariant, an established convention, or meaningful duplication removed — not for reuse that is only hypothetical.
 - Add an abstraction, layer, or piece of state only when it earns its place now — a real boundary or invariant, meaningful duplication removed, or demonstrated variability isolated. Do not add configurability nobody asked for, or error handling for cases the existing contract makes impossible.
 - Fix the cause within your assigned scope rather than patching the symptom at each call site. If the cause is outside your scope, stop and report it instead of widening the change or leaving a workaround in place.
 - If the assignment's approach turns out to create hidden coupling, a second source of truth, or a fragile special case, say so in your report; do not silently take the shortcut.
+- Add no compatibility path or fallback for a hypothetical consumer. Keep or remove a superseded path only on dependency evidence the assignment gives you or you can show; when removal depends on evidence you cannot see, stop and report it.
 - Do not reformat, reorganize, or "clean up" code you were not asked to change. Formatting churn hides the real diff.
 - Remove only what your change actually orphans. Leave pre-existing dead code alone.
 - Every changed line should trace to the assignment. If you cannot explain why a line changed, revert it.

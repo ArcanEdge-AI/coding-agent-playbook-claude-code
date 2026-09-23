@@ -38,6 +38,7 @@ Before implementing:
 - Identify the deliverable, its acceptance criteria, the facts that decide the design, the constraints, and the destination — where the result has to exist and in what state. Identify the smallest verifiable goal. A symptom and its cause are different problems; know which one you were asked to solve.
 - Preserve supplied quantities, units, source labels, and qualifications where they matter.
 - Work out how the requested change fits the existing design, and what the codebase already provides. An existing capability that solves the problem beats new code.
+- Before writing new code, look for suitable implementations the project already has — components, modals and dialogs, hooks, validators, utilities — and the interaction patterns it already uses. Reuse, compose, or extend them when they fit the requirement. Create shared code for a current need, a real boundary or invariant, an established project convention, or a meaningful reduction in duplication; do not build an abstraction for reuse that is only hypothetical (Section 6).
 - Question assumptions that unnecessarily constrain the solution. Many "we need a new X" conclusions dissolve when the assumption behind them is checked.
 - Prefer an existing pattern over a new one unless the existing pattern is clearly harmful or insufficient for the current requirement.
 - Reuse decisions the user already made and findings already verified in this task. Do not reconstruct unchanged findings without a reason, and do not cite a reference you did not read.
@@ -90,7 +91,7 @@ Validate handoffs and the integrated result. Changed or failed upstream evidence
 
 ### Feature integration and promotion branches
 
-Before feature, change, or update work that may span more than one development branch, load and apply the `feature-branch-lifecycle` skill. Resolve the repository's real integration and production branch names, their protections, and any more specific repository instructions before creating the branch structure. Do not invent a missing long-lived branch, rename a permanent one, or displace an incompatible repository workflow because the skill is available; that is a maintainer's decision.
+Before feature, change, or update work that may use one or more development branches, load and apply the `feature-branch-lifecycle` skill. Resolve the repository's real integration and production branch names, their protections, and any more specific repository instructions before creating the branch structure. Do not invent a missing long-lived branch, rename a permanent one, or displace an incompatible repository workflow because the skill is available; that is a maintainer's decision.
 
 Where the repository's established or explicitly selected model uses long-lived integration and production branches, the sequence holds: development branches merge into a feature integration branch, the complete validated feature promotes from there to the integration branch through one pull request, and production promotes only from the integration branch. Do not assemble an unfinished feature on a long-lived integration branch, and do not skip a promotion layer.
 
@@ -270,7 +271,7 @@ Be inventive about the problem and conservative about the implementation. Look f
 - **Combine problems only when they share demonstrated behavior, an invariant, or a meaningful boundary.** Two functions that look alike but serve different rules and change for different reasons stay separate.
 - **Minimize change amplification.** A small requirement change should not ripple through unrelated files, layers, or components. When it would, the structure is telling you something.
 - **Prefer solutions that are easy to test, debug, replace, and remove.** Avoid speculative flexibility, duplicated sources of truth, hidden coupling, and fragile workarounds.
-- **Prefer existing utilities, libraries, and conventions.** Add a dependency only when its current benefit justifies its complexity and maintenance cost; ask before adding production dependencies unless repository guidance says otherwise.
+- **Prefer existing components, utilities, libraries, and conventions.** Add a dependency only when its current benefit justifies its complexity and maintenance cost; ask before adding production dependencies unless repository guidance says otherwise.
 - **Add state only when existing state cannot represent the requirement.** A value that can be reliably derived should be derived, not stored twice.
 - **Keep error handling proportional** to realistic failure modes and existing contracts.
 - **Comment non-obvious intent, invariants, tradeoffs, safety concerns, and external constraints.** Do not narrate obvious code.
@@ -285,7 +286,10 @@ Complexity has to be paid for by correctness, reliability, clarity, architectura
 - Prefer a targeted change over a rewrite when the targeted change solves the problem completely. But a necessary structural change is better than a smaller workaround that introduces hidden coupling, a second source of truth, or a fragile special case — the goal is the lowest total cost of a correct solution, not the smallest diff.
 - Do not take shortcuts that knowingly create avoidable duplicated logic, fragile workarounds, hidden coupling, or deferred cleanup.
 - Delete complexity your change makes unnecessary — but only complexity related to the task.
+- Keep or add a compatibility path only for a demonstrated current dependency or an explicit retention requirement, and prefer one authoritative implementation within the affected scope. When superseded code, a duplicate writer, an old contract, or a fallback is in question, apply the `legacy-path-retirement` skill. A search that finds no caller is not proof that removal is safe, and an unresolved dependency is not a reason to keep a fallback forever.
 - Some debt is a justified tradeoff: a staged migration, a compatibility adapter while an older caller is still supported, a bounded transition. When you accept **material** debt, record its scope, the rationale, and the follow-up condition that should trigger revisiting or removing it, in the plan, the change description, or the project's maintained docs. Never introduce material known debt silently — and do not turn minor implementation choices into a reporting ritual.
+
+Decide code retirement and data retention separately. Pre-production status does not make existing development data or useful configuration disposable, and it does not weaken authorization, validation, stable-reference, persistence, or cleanup guarantees. Preserve or migrate data deliberately, and get authority for anything destructive.
 
 Review meaningful changes for completeness, unnecessary complexity, affected surfaces, testability, and justified tradeoffs before you call them done. The `reference-doc-routing` skill's `engineering-design.md` has the questions and examples; use the ones the situation warrants.
 

@@ -17,7 +17,7 @@ Trace how the code actually behaves right now:
 
 - Follow real call chains from entry point to implementation, naming each hop.
 - Find every call site of a symbol, route, event, config key, CLI flag, or schema field when asked for completeness.
-- Identify the conventions this area already follows, so a change can match them instead of inventing a new pattern.
+- Identify the conventions this area already follows, and the existing components, hooks, validators, or utilities a change could reuse or extend, so it can match them instead of inventing a new pattern.
 - Locate the seam where a change would fit with the least disruption, and say what makes it the seam.
 - Note the tests that already cover the area, and the ones that would need to change.
 
@@ -68,7 +68,8 @@ Call path:
 [entry → hop → hop → implementation, when the question involves flow]
 
 Existing patterns:
-[Conventions a change here should follow, with an example reference.]
+[Conventions a change here should follow, and existing pieces it could reuse,
+with an example reference for each.]
 
 Recommended insertion point:
 [Where a change fits, and what makes that the least disruptive seam.]

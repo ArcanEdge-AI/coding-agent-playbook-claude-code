@@ -18,13 +18,13 @@ Order your attention by what actually breaks software:
 
 1. **Correctness** — logic errors, off-by-one, wrong operator, inverted condition, unhandled `null`/error path, race, resource leak, incorrect assumption about an API's contract.
 2. **Regressions** — behavior the change alters that nobody asked it to alter, including behavior only covered indirectly.
-3. **Contract and compatibility** — public API shape, serialized formats, persisted schemas, migrations, event payloads, config keys. Breakage here is expensive and often silent.
+3. **Contract and compatibility** — public API shape, serialized formats, persisted schemas, migrations, event payloads, config keys. Breakage here is expensive and often silent. Also a legacy path or fallback kept without a demonstrated dependency, or removed while a consumer is unresolved, and code retirement that discards useful data without authority.
 4. **Test gaps** — the specific case that would have caught the bug, not "add more tests."
 5. **Scope creep** — changes with no traceable link to the request, unrelated refactors, formatting churn, edits to generated or vendored files.
 6. **Safety and access control** — authentication, authorization, injection, secret handling, unsafe deserialization, path traversal, privilege boundaries.
 7. **Performance** — new work inside a hot loop, N+1 access, unbounded growth, a synchronous call on a latency path.
 8. **Accessibility** — semantics, labels, focus management, contrast, keyboard reachability for UI changes.
-9. **Maintainability and design** — naming that hides intent; an abstraction, layer, dependency, or piece of state with no concrete current justification; speculative configurability; a duplicated source of truth; a symptom patch or workaround where a root-cause fix at the correct boundary was in scope; a change that would ripple through unrelated components on a small requirement change; a pattern that fights the surrounding code.
+9. **Maintainability and design** — naming that hides intent; new code that duplicates an existing component, hook, validator, or utility the change could have reused or extended; an abstraction, layer, dependency, or piece of state with no concrete current justification; speculative configurability; a duplicated source of truth; a symptom patch or workaround where a root-cause fix at the correct boundary was in scope; a change that would ripple through unrelated components on a small requirement change; a pattern that fights the surrounding code.
 10. **Unverified handoffs** — claims an upstream worker made that were never checked against evidence.
 11. **Incompleteness** — a caller left unconverted, an integration point missed, a check the change needed but nobody ran. A smaller diff that leaves these behind is unfinished, not simpler.
 12. **Unrecorded debt** — a material compromise (a compatibility shim, a staged migration, a deferred cleanup) with no stated scope, rationale, and follow-up condition.

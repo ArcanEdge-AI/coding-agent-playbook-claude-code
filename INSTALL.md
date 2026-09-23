@@ -51,6 +51,10 @@ $CLAUDE_HOME/
       references/
         multi-session-coordination.md
         templates/active-work-record.md
+    handoff/
+      SKILL.md
+      references/
+        context-contract.md
     reference-doc-routing/
       SKILL.md
       references/
@@ -66,8 +70,14 @@ $CLAUDE_HOME/
           release.md
           api-contracts.md
           data-model.md
+    legacy-path-retirement/
+      SKILL.md
     senior-code-review/
       SKILL.md
+    session-cleanup/
+      SKILL.md
+      references/
+        post-session-cleanup-methodology.md
 ```
 
 Every skill is a self-contained package: its `SKILL.md` and every reference or template it depends on install together under the skill's own directory, and a path written inside a skill resolves against that skill's package root. There is no top-level `references/` directory in the Claude Code home; the `reference-doc-routing` skill packages the catalog that lists every reference and template by owning skill.
@@ -92,6 +102,8 @@ Full install:
 The global instruction body is always installed inside one clearly marked Coding Agent Playbook — Claude Code Edition section. Content outside the markers is preserved. The installer adds the marked section when both markers are absent, or replaces exactly one well-ordered marked section after a timestamped backup. If only one marker exists, either marker is duplicated, or the end appears before the start, it stops without writing the file. A legacy `claude-code-agent-playbook` marker pair is migrated in place.
 
 Any file the installer replaces is first copied to `$CLAUDE_HOME/.coding-agent-playbook-backups/<timestamp>/`, mirroring its relative path. Backups are deliberately kept out of `agents/` and `skills/` so those trees contain only managed files.
+
+A skill directory that already exists under the same name as a playbook skill, but was never installed by the playbook — a standalone skill you added yourself — is adopted: each file the package ships replaces the existing file of that name, which is backed up first when it differs; files the package does not ship are left where they are; and from then on the manifest manages the package's files. Skills the playbook does not ship are never touched.
 
 After a successful run, the installer writes `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` with every managed support-file path and source SHA-256. On later runs, files removed from the repository are backed up and retired only when they still match the previously installed hash. Customized formerly managed files are preserved and reported. Files that were never recorded as playbook-managed are never removed. An existing `.claude-code-agent-playbook-managed-files.tsv` is migrated automatically after a successful update.
 
@@ -199,8 +211,10 @@ Files that must exist:
 - `$CLAUDE_HOME/CLAUDE.md` — present, or intentionally left as a pointer-only file
 - `$CLAUDE_HOME/.coding-agent-playbook-claude-code-managed-files.tsv` — lists every current managed support file exactly once
 - `$CLAUDE_HOME/agents/` — `local-orchestrator.md`, `read-only-explorer.md`, `senior-reviewer.md`, `docs-researcher.md`, `test-triager.md`, `isolated-worker.md`
-- `$CLAUDE_HOME/skills/` — `subagent-orchestration`, `task-graph-orchestration`, `worktree-lifecycle`, `feature-branch-lifecycle`, `multi-session-coordination`, `reference-doc-routing`, `senior-code-review`, each with `SKILL.md`
+- `$CLAUDE_HOME/skills/` — `subagent-orchestration`, `task-graph-orchestration`, `worktree-lifecycle`, `feature-branch-lifecycle`, `multi-session-coordination`, `handoff`, `reference-doc-routing`, `legacy-path-retirement`, `senior-code-review`, `session-cleanup`, each with `SKILL.md`
 - `$CLAUDE_HOME/skills/feature-branch-lifecycle/references/branching-rule.md`
+- `$CLAUDE_HOME/skills/handoff/references/context-contract.md`
+- `$CLAUDE_HOME/skills/session-cleanup/references/post-session-cleanup-methodology.md`
 - `$CLAUDE_HOME/skills/subagent-orchestration/references/` — `model-routing.md`, `subagents.md`
 - `$CLAUDE_HOME/skills/task-graph-orchestration/references/templates/task-graph.md`
 - `$CLAUDE_HOME/skills/worktree-lifecycle/references/` — `worktrees.md`, `templates/worktree-manifest.md`
@@ -232,7 +246,11 @@ Content:
 - Routing guidance states that nesting is enabled by default at three layers, that this playbook caps at two, and that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition.
 - Routing guidance states that `effort` is a role property that overrides session effort, not a ceiling inherited from the caller, that there is no per-invocation effort parameter, and that Haiku does not support `effort`.
 - Task-graph guidance treats nodes as work outcomes with dependencies; a node never implies a helper, and the helper launch allowance, graph dependencies, approval gates, and worktree permits are distinct controls.
-- Branch guidance routes applicable multi-branch feature work to `feature-branch-lifecycle`, keeps the detailed procedure in that skill's packaged reference rather than the global instructions, and states that the sequence grants no authority to open or merge pull requests, delete branches, or promote production.
+- Branch guidance routes feature work that may use one or more development branches to `feature-branch-lifecycle`, keeps the detailed procedure in that skill's packaged reference rather than the global instructions, and states that the sequence grants no authority to open or merge pull requests, delete branches, or promote production.
+- Design guidance asks for existing components, dialogs, hooks, validators, and utilities to be reused, composed, or extended before new code is written, and accepts shared code only for a current need, a real boundary or invariant, an established convention, or meaningful duplication removed.
+- Legacy-path guidance routes superseded code, duplicate writers, old contracts, and fallbacks to `legacy-path-retirement`, which requires dependency evidence or an explicit retention requirement, treats a search that finds nothing as an evidence gap rather than proof, decides data retention separately, and preserves correctness safeguards.
+- Handoff guidance names only session actions Claude Code supports, never offers a resume, fork, branch, or cross-session message as a fresh continuation, and authorizes preparing the continuation rather than continuing the work.
+- Session-cleanup guidance derives its surface from the repository against a verified baseline, preserves unrelated work, and routes branch deletion and worktree removal to their own lifecycle skills.
 - `skills/reference-doc-routing/references/engineering-design.md` is installed and the global instructions point to it for non-trivial design decisions.
 - Worktree guidance states that an isolated subagent branches from the repository default branch rather than the parent's `HEAD` unless `worktree.baseRef` is `"head"`.
 - No non-Claude configuration paths, subagent schemas, or command vocabulary were introduced.
@@ -263,9 +281,14 @@ $CLAUDE_HOME/skills/task-graph-orchestration/
 $CLAUDE_HOME/skills/worktree-lifecycle/
 $CLAUDE_HOME/skills/feature-branch-lifecycle/
 $CLAUDE_HOME/skills/multi-session-coordination/
+$CLAUDE_HOME/skills/handoff/
 $CLAUDE_HOME/skills/reference-doc-routing/
+$CLAUDE_HOME/skills/legacy-path-retirement/
 $CLAUDE_HOME/skills/senior-code-review/
+$CLAUDE_HOME/skills/session-cleanup/
 ```
+
+If an install adopted a skill directory you had created yourself under the same name, your original files are in that run's backup folder; restore them rather than deleting the directory.
 
 If an earlier release left a `$CLAUDE_HOME/references/` directory that an update preserved because you had customized files there, review and remove it yourself.
 

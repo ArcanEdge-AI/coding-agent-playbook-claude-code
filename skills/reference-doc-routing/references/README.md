@@ -25,9 +25,11 @@ Primary evidence: current code, tests, schemas, configuration, logs, build outpu
 | `skills/subagent-orchestration/references/subagents.md` | `subagent-orchestration` | You are deciding whether a helper earns its cost, which role fits, and how to write an assignment that comes back usable. |
 | `references/engineering-design.md` | `reference-doc-routing` (this package) | A design choice is non-trivial, cross-cutting, or hard to reverse; you are about to add an abstraction, layer, dependency, state, or configuration mechanism; or an implementation is accumulating workarounds. Decision questions, earned-abstraction cases, and how to record material technical debt. |
 | `references/reference-doc-routing.md` | `reference-doc-routing` (this package) | You need to decide which documents matter, how much authority each has, and what to pass to a subagent. |
-| `skills/feature-branch-lifecycle/references/branching-rule.md` | `feature-branch-lifecycle` | A feature spans more than one development branch, or branch promotion or temporary-branch cleanup is in scope. Branch-model detection, the promotion sequence, complete-feature validation, the cleanup gates, and the authority each step needs. |
+| `skills/feature-branch-lifecycle/references/branching-rule.md` | `feature-branch-lifecycle` | Feature, change, or update work may use one or more development branches, or branch promotion or temporary-branch cleanup is in scope. Branch-model detection, the promotion sequence, complete-feature validation, the cleanup gates, and the authority each step needs. |
 | `skills/worktree-lifecycle/references/worktrees.md` | `worktree-lifecycle` | Isolation is being proposed, a task already owns an auxiliary checkout, or a worktree needs integrating, preserving, or removing. |
 | `skills/multi-session-coordination/references/multi-session-coordination.md` | `multi-session-coordination` | Other Claude Code sessions, branches, worktrees, or pull requests may be touching the same area. |
+| `skills/session-cleanup/references/post-session-cleanup-methodology.md` | `session-cleanup` | Substantial work is finishing, or the user asked for a cleanup or integrity pass. How to establish the baseline and the full work delta, the seventeen checks, and what belongs in the completion report. |
+| `skills/handoff/references/context-contract.md` | `handoff` | The work is moving to a fresh session. Evidence labels, the material-context inventory, repository handoff rules, a seed-prompt skeleton, and the completeness check. |
 
 ## The templates
 
