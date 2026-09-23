@@ -20,6 +20,7 @@
   <a href="#whats-inside">What's Inside</a> ·
   <a href="#subagent-model">Subagent Model</a> ·
   <a href="#formal-task-graph-orchestration">Task Graphs</a> ·
+  <a href="#feature-branch-lifecycle">Branch Lifecycle</a> ·
   <a href="#task-local-worktree-lifecycle">Worktrees</a> ·
   <a href="#coordinating-parallel-claude-code-sessions">Parallel Sessions</a> ·
   <a href="#repository-structure">Structure</a>
@@ -151,7 +152,7 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 | Installer | `install/` | One standard-library Python installer, thin Bash and PowerShell launchers, and the support-only pointer text. |
 | Global instructions | `custom-instructions/` | Tool-agnostic behavior rules for elegant, maintainable code. Paste into your global `CLAUDE.md`. |
 | Prompts | `claude-prompts/` | Setup and active-project coordination prompts. |
-| Skills | `skills/` | Six self-contained packages — task-graph, subagent, and worktree orchestration, session coordination, document routing, and senior review — each shipping the references and templates it depends on: the fixed subagent route, delegation rules, the engineering-design decision aid, worktree lifecycle, session coordination, and the repository documentation templates. |
+| Skills | `skills/` | Seven self-contained packages — task-graph, subagent, worktree, and feature-branch orchestration, session coordination, document routing, and senior review — each shipping the references and templates it depends on: the fixed subagent route, delegation rules, the engineering-design decision aid, worktree lifecycle, the branching rule, session coordination, and the repository documentation templates. |
 | Custom agents | `agents/` | Claude Code definitions for a bounded local orchestrator, direct workers, and non-spawning execution leaves. |
 | Repository guidance | `CLAUDE.md` | Instructions for maintaining this public playbook repository. |
 
@@ -163,7 +164,7 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 
 Use this for normal installs and updates. Full mode is the default and safely replaces the playbook-owned marked section and current managed files.
 
-Full install writes the global instructions into the user's global `CLAUDE.md`, installs the six skill packages and the custom subagents, and records their paths and hashes in a managed-file manifest. Later updates can back up and retire unchanged files removed upstream while preserving customized or unrelated files.
+Full install writes the global instructions into the user's global `CLAUDE.md`, installs the skill packages and the custom subagents, and records their paths and hashes in a managed-file manifest. Later updates can back up and retire unchanged files removed upstream while preserving customized or unrelated files.
 
 ### Support-only install
 
@@ -304,6 +305,37 @@ skills/task-graph-orchestration/references/templates/task-graph.md
 ```
 
 Run the multi-session coordination workflow first when other Claude Code sessions, branches, worktrees, pull requests, or active-work records may affect the graph's ownership or contracts.
+
+---
+
+## Feature Branch Lifecycle
+
+Where a repository runs long-lived integration and production branches, a feature that spans more than one development branch is assembled somewhere. The failure this prevents is assembling it on the long-lived integration branch, or promoting half of it.
+
+```text
+development branches
+        ↓
+feature integration branch
+        ↓
+long-lived integration branch, for example staging
+        ↓
+long-lived production branch, for example main
+```
+
+Development branches merge only into the feature integration branch. The complete feature is validated there, then promoted to the integration branch through one pull request. Production is promoted only from the integration branch, and only under separate authority.
+
+The branch names above are examples. The skill resolves the repository's real integration and production branches, their protections, and any more specific repository instructions first, and it does not create a missing long-lived branch or displace an incompatible workflow because it happens to be installed.
+
+Cleanup is gated rather than assumed. Before any temporary branch is deleted, the lifecycle verifies incorporation into the exact integration branch, required checks against the accepted result, the absence of unique unpreserved work and of any remaining dependency, worktree disposition, the exact local and remote targets, and authority for each deletion. A clean working tree, an old date, or a merged-looking name is not evidence. A branch whose gates fail is preserved and reported with its exact blocker. Permanent branches are never deleted.
+
+A branch is not a worktree, a branch is not a session, and a feature integration branch is not automatically a task-graph node. The three lifecycles stay separate.
+
+Supporting files:
+
+```text
+skills/feature-branch-lifecycle/SKILL.md
+skills/feature-branch-lifecycle/references/branching-rule.md
+```
 
 ---
 
@@ -468,6 +500,10 @@ skills/reference-doc-routing/references/README.md
 ├── scripts/
 │   └── validate.sh
 └── skills/
+    ├── feature-branch-lifecycle/
+    │   ├── SKILL.md
+    │   └── references/
+    │       └── branching-rule.md
     ├── multi-session-coordination/
     │   ├── SKILL.md
     │   └── references/
@@ -578,7 +614,9 @@ The root session still decides the design, accepts or rejects the recommendation
    and confirm write ownership is disjoint before running writers concurrently.
 7. Keep the auxiliary-worktree budget at zero unless a real isolation need is
    verified. Reconcile every task-created auxiliary before finishing.
-8. Use the multi-session coordination skill when other sessions own related work.
+8. Use the multi-session coordination skill when other sessions own related work,
+   and the feature-branch lifecycle skill when a feature spans several branches
+   and has to be promoted or cleaned up.
 9. Verify the final combined diff and integrated behavior before accepting.
 ```
 

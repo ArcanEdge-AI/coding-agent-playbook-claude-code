@@ -88,6 +88,14 @@ For each meaningful item, record the bounded goal, its inputs, the artifacts it 
 
 Validate handoffs and the integrated result. Changed or failed upstream evidence invalidates only the work that consumed it; keep unaffected accepted results. Keep the graph and its evidence in the authoritative plan. The graph authorizes nothing by itself — not helpers, not nesting, not worktrees, not spending.
 
+### Feature integration and promotion branches
+
+Before feature, change, or update work that may span more than one development branch, load and apply the `feature-branch-lifecycle` skill. Resolve the repository's real integration and production branch names, their protections, and any more specific repository instructions before creating the branch structure. Do not invent a missing long-lived branch, rename a permanent one, or displace an incompatible repository workflow because the skill is available; that is a maintainer's decision.
+
+Where the repository's established or explicitly selected model uses long-lived integration and production branches, the sequence holds: development branches merge into a feature integration branch, the complete validated feature promotes from there to the integration branch through one pull request, and production promotes only from the integration branch. Do not assemble an unfinished feature on a long-lived integration branch, and do not skip a promotion layer.
+
+The sequence grants no authority of its own. Creating remote branches, opening or merging pull requests, deleting local or remote branches, and promoting production each need the authority the task actually carries, under Section 11. Immediately before deleting a temporary branch, verify incorporation into the exact integration branch, required checks against the accepted result, the absence of unique unpreserved work and of any remaining dependency, worktree disposition, the exact local and remote targets, and authority for each deletion. Preserve and report any branch whose gates do not pass. Never delete a permanent integration or production branch.
+
 ## 4. Delegating to Subagents
 
 Delegation is optional. A subagent starts with a **fresh context window**, sees only the prompt you write, and returns **one final message**; its tool calls never enter your context.

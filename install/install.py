@@ -12,8 +12,8 @@ What a run does, in order:
 2. Adds or replaces the playbook's marked section in ``$CLAUDE_HOME/CLAUDE.md``
    with the full global instructions (``--full``, the default) or the short
    support-only pointer (``--support-only``).
-3. Copies the six subagent definitions and the six self-contained skill
-   packages into the Claude Code home, backing up anything it replaces under
+3. Copies the six subagent definitions and every self-contained skill package
+   into the Claude Code home, backing up anything it replaces under
    ``$CLAUDE_HOME/.coding-agent-playbook-backups/<timestamp>/``.
 4. Verifies every installed managed file against its source SHA-256.
 5. Retires files a previous playbook release managed but this one no longer
@@ -53,14 +53,6 @@ LEGACY_MANIFEST_NAME = ".claude-code-agent-playbook-managed-files.tsv"
 MANIFEST_HEADER = "# coding-agent-playbook-claude-code managed files v1"
 BACKUP_DIR_NAME = ".coding-agent-playbook-backups"
 
-SKILL_NAMES = (
-    "multi-session-coordination",
-    "reference-doc-routing",
-    "senior-code-review",
-    "subagent-orchestration",
-    "task-graph-orchestration",
-    "worktree-lifecycle",
-)
 AGENT_NAMES = (
     "docs-researcher",
     "isolated-worker",
@@ -72,28 +64,6 @@ AGENT_NAMES = (
 READ_ONLY_AGENTS = frozenset({"read-only-explorer", "docs-researcher", "senior-reviewer"})
 HAIKU_AGENTS = frozenset({"read-only-explorer", "docs-researcher"})
 FRONTMATTER_KEYS = ("name", "description", "model", "permissionMode", "tools", "disallowedTools")
-
-# Every reference and template a skill package ships, relative to the skills root.
-PACKAGED_REFERENCES = (
-    "multi-session-coordination/references/multi-session-coordination.md",
-    "multi-session-coordination/references/templates/active-work-record.md",
-    "reference-doc-routing/references/README.md",
-    "reference-doc-routing/references/engineering-design.md",
-    "reference-doc-routing/references/reference-doc-routing.md",
-    "reference-doc-routing/references/templates/api-contracts.md",
-    "reference-doc-routing/references/templates/architecture.md",
-    "reference-doc-routing/references/templates/data-model.md",
-    "reference-doc-routing/references/templates/design-system.md",
-    "reference-doc-routing/references/templates/release.md",
-    "reference-doc-routing/references/templates/repository-CLAUDE.md",
-    "reference-doc-routing/references/templates/security.md",
-    "reference-doc-routing/references/templates/testing.md",
-    "subagent-orchestration/references/model-routing.md",
-    "subagent-orchestration/references/subagents.md",
-    "task-graph-orchestration/references/templates/task-graph.md",
-    "worktree-lifecycle/references/templates/worktree-manifest.md",
-    "worktree-lifecycle/references/worktrees.md",
-)
 
 # A path written inside a skill's Markdown that must resolve inside that skill's
 # own package. The lookbehind keeps "skills/x/references/y" (a Claude-home path)
@@ -112,6 +82,47 @@ class ManifestEntry:
     @property
     def key(self) -> Tuple[str, str]:
         return self.root, self.path
+
+
+def discover_skill_packages(skills_root: Path) -> List[str]:
+    """Every skill package under skills_root, by directory name.
+
+    Discovery is generic on purpose: adding a skill package to the repository
+    must not require editing this installer. A directory directly under the
+    skills root is a package and has to carry a SKILL.md; anything else there
+    is a mistake worth failing on rather than installing silently.
+    """
+    if not skills_root.is_dir():
+        raise FileNotFoundError(f"Missing skills directory: {skills_root}")
+    stray = sorted(path.name for path in skills_root.iterdir() if path.is_file())
+    if stray:
+        raise ValueError(
+            f"Loose file directly under {skills_root}; every file belongs to a skill package: " + ", ".join(stray)
+        )
+    names = sorted(path.name for path in skills_root.iterdir() if path.is_dir())
+    if not names:
+        raise FileNotFoundError(f"No skill packages found under {skills_root}")
+    missing = [name for name in names if not (skills_root / name / "SKILL.md").is_file()]
+    if missing:
+        raise FileNotFoundError(
+            f"Directory under {skills_root} with no SKILL.md: " + ", ".join(missing)
+        )
+    return names
+
+
+def packaged_skill_files(skills_root: Path) -> List[str]:
+    """Every file a skill package ships, as posix paths relative to skills_root.
+
+    This enumerates what is present, so it cannot notice that a packaged file was
+    deleted from the source. What catches that is `validate_skill_references`,
+    and only for a file some Markdown in its own package names by a relative
+    `references/...` path. A packaged file that nothing in its package points at
+    has no presence check; keep every packaged file referenced from its own
+    SKILL.md or one of its own references.
+    """
+    return sorted(
+        path.relative_to(skills_root).as_posix() for path in skills_root.rglob("*") if path.is_file()
+    )
 
 
 def parse_frontmatter(text: str) -> Dict[str, str]:
@@ -198,6 +209,7 @@ class Installer:
         self.target_claude_md = self.claude_home / "CLAUDE.md"
         self.source_agents = self.repo_root / "agents"
         self.source_skills = self.repo_root / "skills"
+        self.skill_names = discover_skill_packages(self.source_skills)
         self.managed_roots: Dict[str, Tuple[Path, Path]] = {
             "agents": (self.source_agents, self.claude_home / "agents"),
             "skills": (self.source_skills, self.claude_home / "skills"),
@@ -452,8 +464,7 @@ class Installer:
                 self.global_instructions,
                 self.pointer_source,
                 *(self.source_agents / f"{name}.md" for name in AGENT_NAMES),
-                *(self.source_skills / name / "SKILL.md" for name in SKILL_NAMES),
-                *(self.source_skills / relative for relative in PACKAGED_REFERENCES),
+                *(self.source_skills / name / "SKILL.md" for name in self.skill_names),
             )
             if not path.is_file()
         ]
@@ -470,7 +481,7 @@ class Installer:
 
     def validate_skill_references(self, skills_root: Path) -> None:
         checked = 0
-        for name in SKILL_NAMES:
+        for name in self.skill_names:
             skill_root = (skills_root / name).resolve()
             if not skill_root.is_dir():
                 raise FileNotFoundError(f"Missing skill package: {skill_root}")
@@ -494,8 +505,9 @@ class Installer:
         required: List[Path] = [
             self.target_claude_md,
             *(self.claude_home / "agents" / f"{name}.md" for name in AGENT_NAMES),
-            *(self.claude_home / "skills" / name / "SKILL.md" for name in SKILL_NAMES),
-            *(self.claude_home / "skills" / relative for relative in PACKAGED_REFERENCES),
+            # Every file the source packages ship, so a reference or template is
+            # verified in the installed home exactly like its SKILL.md.
+            *(self.claude_home / "skills" / relative for relative in packaged_skill_files(self.source_skills)),
         ]
         for path in required:
             if self.dry_run:
@@ -507,7 +519,7 @@ class Installer:
         if self.dry_run:
             return
 
-        for name in SKILL_NAMES:
+        for name in self.skill_names:
             skill = self.claude_home / "skills" / name / "SKILL.md"
             data = parse_frontmatter(skill.read_text(encoding="utf-8"))
             if "name" in data and "description" in data:
@@ -532,6 +544,7 @@ class Installer:
         self.say(f"Repository: {self.repo_root}")
         self.say(f"CLAUDE_HOME: {self.claude_home}")
         self.say(f"Managed-file manifest: {self.manifest_path}")
+        self.say(f"Skill packages found: {len(self.skill_names)} ({', '.join(self.skill_names)})")
         if self.dry_run:
             self.say("Dry run: nothing will be created, changed, or removed.")
 

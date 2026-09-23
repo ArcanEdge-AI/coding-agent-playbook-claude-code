@@ -9,7 +9,7 @@ Subagents report to you. **Independent sessions do not.** Each has its own histo
 
 The failure this skill exists to prevent is not a merge conflict. It is two sessions each doing correct work against different assumptions about a shared contract, both passing their own tests, and Git merging them cleanly into something broken.
 
-Detailed rules: `references/multi-session-coordination.md`, packaged with this skill. Worktree rules: the `worktree-lifecycle` skill.
+Detailed rules: `references/multi-session-coordination.md`, packaged with this skill. Worktree rules: the `worktree-lifecycle` skill. Branch topology, promotion, and temporary-branch cleanup: the `feature-branch-lifecycle` skill.
 
 ## Use this when
 
@@ -79,7 +79,7 @@ Never claim you reviewed a session when you inspected only its branch, PR, or di
 
 ### 4. Build the shared change map
 
-Per work item: session name and identifier, evidence label, objective, status, last activity, project directory, branch or worktree, worktree class and permit, files and modules affected, APIs/events/routes/interfaces affected, schemas and migrations affected, dependencies changed, upstream artifacts or decisions it needs, tests affected, verification gates, assumptions, unmet dependencies and blockers, open decisions, integration status.
+Per work item: session name and identifier, evidence label, objective, status, last activity, project directory, branch or worktree, worktree class and permit, branch role and its permitted merge target, promotion state, cleanup eligibility, files and modules affected, APIs/events/routes/interfaces affected, schemas and migrations affected, dependencies changed, upstream artifacts or decisions it needs, tests affected, verification gates, assumptions, unmet dependencies and blockers, open decisions, integration status.
 
 Keep confirmed facts visibly separate from inference.
 
@@ -97,7 +97,7 @@ Merge conflicts are the easiest to find and the least dangerous.
 
 ### 6. Assign ownership and sequence
 
-State explicitly: one owner per shared file, contract, schema, or coupled area; who continues independently; who pauses; what must finish first; who rebases or moves to a separate worktree; which contract is settled before implementation continues; who adapts to an established interface; the integration checkpoints; and the remaining chain of blocking work.
+State explicitly: one owner per shared file, contract, schema, or coupled area; who continues independently; who pauses; what must finish first; who rebases or moves to a separate worktree; which branches converge through one feature integration branch before promotion; which contract is settled before implementation continues; who adapts to an established interface; the integration checkpoints; and the remaining chain of blocking work.
 
 Prefer the smallest safe coordination change. Never allow independent redesigns of the same shared subsystem. Never say only "coordinate with the other session."
 
