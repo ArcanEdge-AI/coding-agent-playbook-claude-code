@@ -6,6 +6,8 @@ The examples call them `staging` and `main`. Always resolve the repository's rea
 
 ## The structure
 
+Where this lifecycle applies, feature, change, or update work that may use one or more development branches follows this structure:
+
 ```text
 production branch
         ↑

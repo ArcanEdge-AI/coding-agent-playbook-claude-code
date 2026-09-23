@@ -85,7 +85,7 @@ jobs:
           if (-not ($out -match 'Dry run complete. No files were changed.')) { throw "dry run did not report that nothing changed" }
           Write-Host "install.ps1 dry run created nothing."
 
-      - name: Fail loudly on a missing managed file
+      - name: Fail loudly on a missing packaged reference
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Continue'
@@ -94,8 +94,10 @@ jobs:
           foreach ($d in @('agents','skills','custom-instructions','install')) {
             Copy-Item -Recurse -Path $d -Destination (Join-Path $clone $d)
           }
-          Remove-Item -Recurse -Force (Join-Path $clone 'skills/senior-code-review')
+          # Skill packages are discovered, so a whole missing package is not an
+          # error; a packaged reference its own SKILL.md names still is.
+          Remove-Item -Force (Join-Path $clone 'skills/worktree-lifecycle/references/worktrees.md')
           $env:CLAUDE_CONFIG_DIR = Join-Path ([System.IO.Path]::GetTempPath()) ([System.Guid]::NewGuid().ToString())
           & (Join-Path $clone 'install/install.ps1') -Full *> $null
-          if ($LASTEXITCODE -eq 0) { throw "install.ps1 exited 0 despite a missing managed file." }
+          if ($LASTEXITCODE -eq 0) { throw "install.ps1 exited 0 despite a missing packaged reference." }
           Write-Host "install.ps1 correctly exits non-zero."

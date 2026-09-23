@@ -43,7 +43,7 @@ For files agents read directly (`agents/`, `skills/` including each skill's pack
 - Explain the mechanism when it changes behavior.
 - Use Claude Code's own vocabulary — `Agent`, `subagent_type`, `model`, `effort`, `permissionMode`, `tools`, `disallowedTools`, plan mode — rather than invented terms.
 
-Keep intact: root-session ownership and direct-first execution (delegation optional, bounded, and flat by default), the separation of the branch, worktree, session, and dependency lifecycles, the fixed per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles), the two-layer subagent bound, capability boundaries, the task-local worktree lifecycle, and the engineering-design standard (smallest complete solution, earned abstractions, recorded material debt).
+Keep intact: root-session ownership and direct-first execution (delegation optional, bounded, and flat by default), the separation of the branch, worktree, session, and dependency lifecycles, the fixed per-role route (Haiku for the two lookup roles, Sonnet at `high` for the four judgment roles), the two-layer subagent bound, capability boundaries, the task-local worktree lifecycle, the engineering-design standard (smallest complete solution, reuse before new code, earned abstractions, recorded material debt), and evidence-based legacy-path retirement (dependency evidence before a path is kept or removed, with data retention decided separately).
 
 Compare generic policy changes with the companion Codex playbook. Align them, or name the concrete Claude Code capability that requires the difference.
 
@@ -58,6 +58,7 @@ Several rules here depend on documented Claude Code behavior. An earlier revisio
 - effort semantics (a role property that overrides session effort, not an inherited ceiling)
 - plan-mode command gating (a `plan`-mode subagent cannot reliably run test suites)
 - `isolation: worktree` base ref (default branch, not the parent's `HEAD`)
+- session actions the `handoff` skill relies on: which ones start a fresh session, which carry the old history, how a background session isolates and preserves its edits, and the commands that list, inspect, and attach to it
 
 `CLAUDE.md` keeps the current statement of each. Update it in the same change.
 

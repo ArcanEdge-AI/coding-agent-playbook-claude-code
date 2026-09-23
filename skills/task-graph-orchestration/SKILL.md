@@ -35,6 +35,7 @@ Skip it when the work is small, genuinely linear, dominated by one coherent desi
 7. Identify every action that will need explicit approval — audience-facing, destructive, irreversible, sensitive, production-affecting, materially costly, or outside current authority.
 8. Read `references/templates/task-graph.md` before creating a graph artifact.
 9. Use the `worktree-lifecycle` skill if any node proposes or already uses an auxiliary checkout.
+10. Use the `feature-branch-lifecycle` skill if any node creates, integrates, promotes, or deletes a branch. A branch is not automatically a node.
 
 Keep a medium graph in your working plan. For long-running, multi-phase, or multi-session work, write `.claude/coordination/task-graphs/<task-slug>.md` when repository policy allows a local coordination artifact. Do not create a repository artifact for an informational question or a task that does not authorize changes.
 
@@ -88,7 +89,7 @@ A node is ready when every declared dependency has an **accepted** output and ev
 - For helper-executed nodes: pass the role's model explicitly on every dispatch (`haiku` for lookup roles, `sonnet` for judgment roles) and use a bundled role so its fixed effort applies. The route is the same at every layer, for retries, and for replacements; a forced subagent model or an allowlist substitution is a constraint to report, not a substitute to accept.
 - Start in the shared workspace with an auxiliary-worktree budget of zero. Only you may authorize `isolation: worktree`, and descendants never request it.
 
-When a helper executes a node, add to the standard assignment:
+When a helper executes a node, write the assignment with the `subagent-orchestration` skill and add:
 
 ```text
 Graph node:

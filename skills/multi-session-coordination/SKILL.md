@@ -88,7 +88,7 @@ Keep confirmed facts visibly separate from inference.
 Merge conflicts are the easiest to find and the least dangerous.
 
 - **File and ownership** — two sessions editing one file; two owning a module; a refactor reaching into another's area.
-- **Architecture** — competing abstractions for one responsibility; incompatible state management; independent redesigns of a shared subsystem.
+- **Architecture** — competing abstractions for one responsibility; duplicate components, utilities, or services built for the same job; incompatible state management; independent redesigns of a shared subsystem.
 - **Contract** — incompatible request/response shapes; conflicting shared types; disagreeing event payloads; one session on an outdated contract.
 - **Data** — incompatible migrations; conflicting schema assumptions; duplicate persistence models; an unexpected destructive change.
 - **Dependency** — incompatible versions; two libraries for one job; changed build or runtime requirements.

@@ -19,7 +19,7 @@ Problem and scope:
 Simpler paths:
 
 4. Could a different approach eliminate the problem, or the need for new machinery, entirely?
-5. Can an existing capability — a utility, a pattern, a library already in use, a field that already exists — satisfy the requirement?
+5. Can an existing capability — a component, dialog, hook, validator, utility, interaction pattern, library already in use, or field that already exists — satisfy the requirement as it is, or by composing or extending it?
 6. Can the implementation be clearer or smaller while remaining complete, including integration and verification?
 7. Does the existing architecture already provide the appropriate pattern? If you are departing from it, what makes the existing pattern harmful or insufficient here?
 
@@ -39,6 +39,8 @@ An abstraction earns its place by delivering a concrete benefit now. The benefit
 A single-use adapter that isolates an external dependency or translates a foreign contract can be justified by its boundary even though nothing else calls it: it keeps the dependency's shape from leaking into domain code, and it gives the replacement a seam.
 
 Conversely, two similar-looking functions may serve different rules and change for different reasons. Merging them because their syntax matches buys a shared function with a growing parameter list and conditional branches. Combine problems only when they share demonstrated behavior, an invariant, or a meaningful boundary.
+
+Shared code answers the same question. Extract a shared component, hook, validator, or utility — or extend an existing one — when a current need for shared behavior, a real boundary or invariant, an established project convention, or a meaningful reduction in duplication justifies it. Building one for reuse that is only hypothetical is speculative generality: it costs an interface and a layer of indirection now, for a benefit that may never arrive.
 
 Prefer clear responsibilities and small interfaces. Wrappers, managers, factories, service layers, plugin systems, and configuration mechanisms that add indirection without a present benefit are complexity with no payer. No category of abstraction is inherently forbidden or required; each one answers question 9.
 
@@ -62,6 +64,8 @@ Prefer avoiding known debt. When constraints justify a material compromise, reco
 
 For example, a compatibility adapter may remain while a supported caller still uses the older contract; its removal is tied to that caller's migration. A bounded transition with a named exit is different from a fragile workaround that quietly became permanent.
 
+Without a demonstrated current dependency or an explicit retention requirement, prefer retiring the superseded path over adding guards around it; the `legacy-path-retirement` skill holds that dependency decision. Existing development data is a separate retention or migration decision, not a justification for permanent compatibility code — and pre-production status neither makes that data disposable nor weakens authorization, validation, stable-reference, persistence, or cleanup guarantees.
+
 Write the record into the existing plan, the change description, or the project's maintained documentation. Do not invent a tracking system, a deadline, or a cleanup commitment without a real need and the authority to make it. And do not apply this to minor implementation choices — a reporting ritual for every small decision buries the tradeoffs that matter.
 
 ## Review questions for the finished change
@@ -71,6 +75,8 @@ Before calling a meaningful change done, ask:
 - Is it complete — integrated, verified, and free of unconverted callers or unrun checks?
 - Is anything in it speculative — flexibility, configurability, or generality nobody asked for and no current requirement uses?
 - Did it introduce a duplicated source of truth, hidden coupling, or a workaround where a boundary fix was in scope?
+- Does it duplicate a component, hook, validator, or utility the project already had?
+- Did it keep a legacy path without a demonstrated dependency, or remove one while a consumer was still unresolved?
 - Would a small change in the requirement now ripple further than it should?
 - Is every material tradeoff recorded with scope, rationale, and follow-up condition?
 - Can it be tested, debugged, replaced, and removed without archaeology?

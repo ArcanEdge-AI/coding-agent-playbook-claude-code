@@ -170,7 +170,7 @@ Overlapping file edits are the easiest kind to find and the least dangerous. Che
 
 **File and ownership** — two sessions editing one file; two sessions owning a module; a broad refactor reaching into another session's area.
 
-**Architecture** — competing abstractions for one responsibility; incompatible state-management approaches; independent redesigns of a shared subsystem; changes that bypass an established boundary.
+**Architecture** — competing abstractions for one responsibility; duplicate components, utilities, or services built for the same job; incompatible state-management approaches; independent redesigns of a shared subsystem; changes that bypass an established boundary.
 
 **Contract** — incompatible request or response shapes; conflicting shared types; event names or payloads that disagree; one session building against an outdated contract.
 

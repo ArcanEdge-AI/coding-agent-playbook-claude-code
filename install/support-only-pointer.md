@@ -14,6 +14,8 @@ Supporting reference documents ship inside the skill that owns them, under the C
 - `skills/worktree-lifecycle/references/templates/worktree-manifest.md` — the worktree-manifest template
 - `skills/multi-session-coordination/references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
 - `skills/multi-session-coordination/references/templates/active-work-record.md` — the active-work-record template
+- `skills/handoff/references/context-contract.md` — what a handoff package carries into a fresh session: evidence labels, the material-context inventory, repository rules, a seed-prompt skeleton, and the completeness check
+- `skills/session-cleanup/references/post-session-cleanup-methodology.md` — the end-of-work cleanup and integrity procedure: the baseline and full work delta, the seventeen checks, and the completion report
 
 Reusable Claude Code skills live under the Claude Code home skills directory:
 
@@ -22,8 +24,11 @@ Reusable Claude Code skills live under the Claude Code home skills directory:
 - `skills/feature-branch-lifecycle/SKILL.md`
 - `skills/worktree-lifecycle/SKILL.md`
 - `skills/multi-session-coordination/SKILL.md`
+- `skills/handoff/SKILL.md`
 - `skills/reference-doc-routing/SKILL.md`
+- `skills/legacy-path-retirement/SKILL.md`
 - `skills/senior-code-review/SKILL.md`
+- `skills/session-cleanup/SKILL.md`
 
 Custom Claude Code subagents live under the Claude Code home agents directory:
 
@@ -42,7 +47,9 @@ Claude Code allows nested subagents by default, up to three layers below the mai
 
 Read-only roles run in `plan` mode, which means they cannot reliably run tests, linters, type checkers, or builds — those commands prompt or go to the classifier. Route suite execution to `test-triager`, which runs in `default` mode.
 
-Before feature work that may span more than one development branch, load the `feature-branch-lifecycle` skill and resolve the repository's real integration and production branch names before creating the branch structure. Development branches merge into a feature integration branch, the complete validated feature promotes from there to the integration branch through one pull request, and production promotes only from the integration branch under separate authority. Do not assemble an unfinished feature on a long-lived integration branch, skip a promotion layer, or invent a missing long-lived branch. Verify every cleanup gate immediately before deleting a temporary branch, preserve and report any branch whose gates do not pass, and never delete a permanent integration or production branch.
+Before feature work that may use one or more development branches, load the `feature-branch-lifecycle` skill and resolve the repository's real integration and production branch names before creating the branch structure. Development branches merge into a feature integration branch, the complete validated feature promotes from there to the integration branch through one pull request, and production promotes only from the integration branch under separate authority. Do not assemble an unfinished feature on a long-lived integration branch, skip a promotion layer, or invent a missing long-lived branch. Verify every cleanup gate immediately before deleting a temporary branch, preserve and report any branch whose gates do not pass, and never delete a permanent integration or production branch.
+
+Before writing new code, look for components, dialogs, hooks, validators, utilities, and interaction patterns the project already has, and reuse, compose, or extend them when they fit; create shared code only for a current need, a real boundary or invariant, an established convention, or meaningful duplication removed. Keep or add a compatibility path only for a demonstrated current dependency or an explicit retention requirement, and apply the `legacy-path-retirement` skill when superseded code, a duplicate writer, an old contract, or a fallback is in question. A search that finds no caller is not proof that removal is safe, and code retirement and data retention are separate decisions.
 
 The auxiliary-worktree budget starts at zero and is separate from anything about subagent counts or the helper launch allowance. Only the root may authorize `isolation: worktree`, create or adopt an auxiliary, change its purpose, move it, or remove it. One active auxiliary needs no added approval; two or more require user approval for the exact count and reasons. An isolated subagent's worktree branches from the repository default branch rather than the current `HEAD` unless `worktree.baseRef` is `"head"`, so record and verify the base ref before dispatching. Before the final response, remove each task-created auxiliary under verified gates or preserve it with exact path, owner, branch or HEAD, blocker, and next action. Task-local cleanup does not depend on scheduled automation, and the active host-managed workspace stays under the host lifecycle.
 
