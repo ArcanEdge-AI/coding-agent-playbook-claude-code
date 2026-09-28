@@ -47,6 +47,7 @@ This skill does not delete branches or remove worktrees. A temporary branch that
 - "Someone might use it", "for backwards compatibility", "to be safe", and "future-proofing" are not evidence.
 - Code introduced and superseded entirely within an unmerged branch never shipped. Branch history is not production history, so remove it without a compatibility path.
 - Compatibility code that predates the work delta is different: it may have consumers you cannot see. Apply the `legacy-path-retirement` skill before removing it, and when its necessity cannot be established either way, leave it unchanged and report the uncertainty.
+- Confirm that a consumer or a data set actually requires continued support before keeping code for it. Obsolete test accounts, fixtures, seed data, and hypothetical users are not support commitments; `legacy-path-retirement` separates that decision from whether their data is preserved or reset under authority. Alpha status justifies neither a compatibility layer nor a rebuild of the flow.
 
 ## 4. Review sequence
 
@@ -72,8 +73,8 @@ Before every additional change, ask: *is this necessary to correctly complete, s
 | 8. Security boundaries | A touched surface handles secrets, identity, authorization, ownership, input, logs, dynamic execution, or files |
 | 9. Dependencies and configuration | Packages, lockfiles, environment variables, build settings, or deployment configuration changed |
 | 10. UI and UX | Any user interface changed. Reading the source does not prove UI behavior |
-| 11. Tests | Always |
-| 12. Validation pipeline | Always |
+| 11. Tests — intended final behavior and realistic regression risks, not abandoned partial fixes | Always |
+| 12. Validation pipeline — the smallest meaningful checks, then the required affected gates | Always |
 | 13. Documentation against reality | Documentation, setup, configuration, APIs, examples, or user-facing copy is affected |
 | 14. Deferred-work markers | Always |
 | 15. Repository hygiene | Always |

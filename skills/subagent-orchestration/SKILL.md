@@ -1,11 +1,13 @@
 ---
 name: subagent-orchestration
-description: Use when planning how to delegate a coding task to Claude Code subagents — deciding whether to delegate at all, which role fits, how to write an assignment that comes back usable, how to run several safely in parallel, and how to verify results before accepting them. Use multi-session-coordination instead when other independent Claude Code sessions already own related work.
+description: Use when considering or carrying out delegation to Claude Code subagents — deciding whether a helper is worth its cost at all, which role fits, which approved model the work needs, how to write an assignment that comes back usable, how to run several safely in parallel, and how to verify results before accepting them. Not needed to apply a role's perspective directly. Use multi-session-coordination instead when other independent Claude Code sessions already own related work.
 ---
 
 # Subagent Orchestration
 
-You own the task, and by default you do it. Subagents buy you three things — context isolation, parallelism, and independent judgment — and cost you visibility into how the work was done. Delegate a bounded piece only when one of the three is a concrete benefit for it, and write the assignment so the missing visibility does not matter.
+You own the task, and by default you do it. Subagents buy you three things — context isolation, parallelism, and independent judgment — and cost you the context you write into the prompt, the latency of the round trip, the checking the result needs, and visibility into how the work was done. Use them sparingly: delegate a bounded piece only when one of the three benefits outweighs those costs for it, or a governing instruction requires independent assistance, and write the assignment so the missing visibility does not matter.
+
+Reading a bundled role's **Role perspective** and applying it yourself is not delegation and does not need this workflow. It leaves your model, effort, permissions, and ownership untouched, and it counts as self-review, so it does not satisfy an independent-verification gate. Use the steps below only when you are considering or carrying out an actual dispatch.
 
 Full detail: `references/subagents.md` and `references/model-routing.md`.
 
@@ -17,7 +19,7 @@ Delegate when at least one is true:
 - **Parallelism** — several genuinely independent pieces can run at once.
 - **Independent judgment** — a reviewer who never saw the implementer's reasoning will catch what the implementer cannot.
 
-Do it yourself otherwise — and that is the normal case, including substantial multi-file work. Do not delegate because a role is available or cheap, because the task is large, because a graph has a node, or because you have not used a subagent yet. Do not delegate tightly coupled work that would need its context rebuilt at every handoff, or work you have already done.
+Do it yourself otherwise — and that is the normal case, including substantial multi-file work. Do not delegate because a role is available or cheap, because the task is large, because a graph has a node, because a perspective would be useful (apply it yourself), or because you have not used a subagent yet. Do not delegate tightly coupled work that would need its context rebuilt at every handoff, or work you have already done. No sequence of planner, implementer, reviewer, tester, and documentation passes is ever required.
 
 Before the first dispatch, set a finite allowance of launches and retries within the authority you actually have, and for each helper note what it returns, how you will verify it, and the benefit. Keep framing, integration, validation, and the final answer. Direct work waives nothing: the skills, references, graph planning, and verification the task needs apply either way.
 
@@ -35,15 +37,22 @@ Before the first dispatch, set a finite allowance of launches and retries within
 
 One consequence of permission modes worth remembering: `senior-reviewer` runs in `plan` mode and **cannot reliably run tests, linters, type checkers, or builds** — those commands prompt or go to the classifier. When a review needs a suite executed, that is `test-triager`, which runs in `default`.
 
-## 3. Route the model
+## 3. Choose the model for the work
 
-Each role has a fixed route. `read-only-explorer` and `docs-researcher` run on `haiku`; `senior-reviewer`, `test-triager`, `isolated-worker`, and `local-orchestrator` run on `sonnet` at `effort: high`. Pass the role's model on every dispatch; the bundled role's frontmatter supplies its effort. The route is the same for a leaf a `local-orchestrator` dispatches, for a retry, and for a replacement, and it does not change with the main session's model.
+Pick the model for what the helper is actually being asked to do, to minimize the total cost of a correct, accepted result — tokens, the context you repeat into the prompt, retries, corrections, and your own verification afterwards — not the token price alone. Choose sufficient capability upfront; a cheap attempt that has to be redone is the expensive option.
 
-Why: lookup roles return evidence you check directly, so the cheapest model is enough, and Haiku does not support `effort` anyway. Judgment roles are where a weak model produces confident wrong answers. `high` is Sonnet's recommended default; `xhigh` and `max` are not used because they remove the per-turn thinking ceiling and burn usage on work you verify regardless. Opus and Fable stay with the root session.
+| Work | Model on the call |
+| --- | --- |
+| Narrow lookup, extraction, file mapping, log summaries — evidence you check directly | `haiku` |
+| Clear implementation, local fixes, bounded planning, straightforward review | `opus` |
+| Difficult debugging, coupled changes, substantial review, conflicting evidence | `opus`, with a sharper, narrower assignment; if that is not enough, it is the next row |
+| The hardest architecture questions and complex cross-system reasoning | You, on the model the user selected. Not delegated |
 
-Effort cannot be passed on the `Agent` call — only a definition pins it, and it overrides session effort. So dispatch bundled roles, not built-in agent types, when reasoning depth matters; a `low`-effort session still gets `senior-reviewer` at `high`.
+Each bundled definition declares the default for its typical work — `haiku` on the two lookup roles, `opus` with `effort: medium` on the four judgment roles — and the call selects the actual model: pass it explicitly every time, including on a retry, a replacement, and a leaf a `local-orchestrator` dispatches. An Opus role given only extraction or a summary can be dispatched on `haiku`; judgment work never goes to Haiku; `opus` and `fable` are not helper routes. The choice never follows the main session's model.
 
-Two things can silently change what actually runs: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores every definition's model and blocks the per-call model (and on Claude Code before v2.1.251, a plain `CLAUDE_CODE_SUBAGENT_MODEL` already outranked the call), and an organization allowlist can substitute. If either is in effect or you cannot tell what ran, report it and keep the work yourself rather than accepting a substituted model as the role's. Never route a child to `opus` or `fable`, and never raise effort, to rescue a failing assignment.
+Effort cannot be passed on the `Agent` call — only a definition sets it, and it overrides session effort while the subagent runs. So dispatch bundled roles, not built-in agent types, when reasoning depth matters; a `low`-effort session still gets `senior-reviewer` at `medium`. `medium` is Anthropic's documented default for Opus 5.5 and matches or exceeds Opus 5 at `high` there; `high`, `xhigh`, and `max` on a helper remove that economy and burn usage on work you verify regardless. Haiku has no effort levels.
+
+Keep your own session as the user configured it: do not change its model or effort, and do not toggle fast mode, for yourself or on a helper's behalf. Two things can silently change what actually runs: `CLAUDE_CODE_SUBAGENT_MODEL_FORCE=1` ignores every definition's model and blocks the per-call model (and on Claude Code before v2.1.251, a plain `CLAUDE_CODE_SUBAGENT_MODEL` already outranked the call), and an organization allowlist can substitute. If either is in effect or you cannot tell what ran, report it and keep the work yourself rather than accepting a substituted model. Only you reassign a helper's route, within the approved routes, on task evidence, and within the allowance; a helper never changes its own. Never route a child to `fable`, and never raise effort, to rescue a failing assignment — sharpen it once, then bring the work back.
 
 ## 4. Write the assignment
 
@@ -119,11 +128,12 @@ A returned result is a claim.
 - Was validation actually run, or is its absence explained? A reason for omitting a check is not a passing check.
 - Were the skills the assignment named actually applied? Their required outputs are the evidence; a mention is not.
 - Did the child add machinery the assignment did not call for — an abstraction, state, configurability, or a workaround where a boundary fix was in scope?
+- Did the helper earn its cost — did the benefit you recorded before dispatch actually arrive, and did it tell you something you did not already have?
 - Have you read the final diff yourself?
 
 When two subagents disagree, resolve it against primary evidence — code, tests, schemas, logs, runtime behavior. Do not prefer the more confident one.
 
-One retry with a sharper assignment is reasonable, after you state the failure evidence and what will change; it consumes the allowance. A second identical failure is information: report the blocker. Prefer a bounded correction or finishing the piece yourself over a chain of reviewers, and never cancel required verification to finish sooner.
+One retry with a sharper assignment is reasonable, after you state the failure evidence and what will change; it consumes the allowance and stays within the approved routes — a different model is not a substitute for a sharper assignment. A second identical failure is information: report the blocker. Prefer a bounded correction or finishing the piece yourself over a chain of reviewers, and never cancel required verification to finish sooner.
 
 Never accept a conclusion because it sounds confident.
 

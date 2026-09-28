@@ -31,7 +31,7 @@ Skip it when the work is small, genuinely linear, dominated by one coherent desi
 3. State the goal and the observable success criteria.
 4. Select the skills whose triggers apply to this work, read each entrypoint before the work it covers, and note which nodes each skill governs.
 5. Set the helper launch and retry allowance before any node is assigned to a helper. Zero is a valid allowance; most graphs the root executes itself need none.
-6. Note the main session's model for provenance only, where you can observe it. It does not set the subagent route — each role's model and effort are fixed regardless.
+6. Note the main session's model for provenance only, where you can observe it. It does not set a helper's route — a helper's model is chosen for its work within the approved routes, and its effort comes from its definition.
 7. Identify every action that will need explicit approval — audience-facing, destructive, irreversible, sensitive, production-affecting, materially costly, or outside current authority.
 8. Read `references/templates/task-graph.md` before creating a graph artifact.
 9. Use the `worktree-lifecycle` skill if any node proposes or already uses an auxiliary checkout.
@@ -86,7 +86,7 @@ A node is ready when every declared dependency has an **accepted** output and ev
 - If parallelism is unavailable, run ready nodes sequentially while preserving dependencies.
 - Keep architecture, security judgment, destructive operations, migrations, concurrency design, public API compatibility, and final acceptance with yourself.
 - For helper-executed nodes: use `plan` mode roles for exploration, research, and review; `default` for write-capable roles. Remember `plan`-mode subagents cannot reliably run suites — route execution to `test-triager`.
-- For helper-executed nodes: pass the role's model explicitly on every dispatch (`haiku` for lookup roles, `sonnet` for judgment roles) and use a bundled role so its fixed effort applies. The route is the same at every layer, for retries, and for replacements; a forced subagent model or an allowlist substitution is a constraint to report, not a substitute to accept.
+- For helper-executed nodes: first confirm the helper is worth its cost for that node — a graph node is never a reason by itself. Then pass an approved model explicitly on every dispatch, chosen for the node's work (`haiku` for lookup or extraction, `opus` for judgment), and use a bundled role so its definition's effort applies. The approved routes are the same at every layer, for retries, and for replacements; a forced subagent model or an allowlist substitution is a constraint to report, not a substitute to accept.
 - Start in the shared workspace with an auxiliary-worktree budget of zero. Only you may authorize `isolation: worktree`, and descendants never request it.
 
 When a helper executes a node, write the assignment with the `subagent-orchestration` skill and add:
@@ -98,8 +98,8 @@ Declared inputs:
 Applicable skills (name and entrypoint path, read before the covered work):
 Output shape and acceptance condition:
 Read scope / write ownership:
-Model: [haiku or sonnet, per role]
-Role (and its fixed effort):
+Model: [haiku or opus, chosen for this node's work]
+Role (and the effort its definition sets):
 Permission mode and tools:
 Exact workspace:
 Verification gate:
@@ -124,7 +124,7 @@ Use an independent `senior-reviewer` or `test-triager` node when risk, blast rad
 When a gate fails:
 
 - Keep accepted outputs from unrelated nodes.
-- Rerun the failed node after stating the failure evidence and what will change. If a helper ran it, the retry stays on the same route and consumes the allowance; do not change the model or raise effort to make it pass.
+- Rerun the failed node after stating the failure evidence and what will change. If a helper ran it, the retry stays within the approved routes and consumes the allowance; a different model is not a substitute for a sharper assignment, and effort is never raised to make it pass.
 - Rerun downstream nodes **only** where the input they consumed actually became invalid.
 - Recompile the affected portion when the failure reveals a missing edge or a wrong decomposition.
 - Stop retrying when the same failure repeats, and report the blocker.
