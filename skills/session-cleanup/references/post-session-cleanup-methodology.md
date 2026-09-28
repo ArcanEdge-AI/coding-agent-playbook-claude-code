@@ -316,9 +316,13 @@ Review the tests associated with the work:
 
 Add or improve tests where this work introduced a meaningful gap. Remove or update work-delta tests that only preserve abandoned branch behavior. Do not write excessive tests for trivial implementation details.
 
+The tests that remain should protect the intended final solution, including focused unit tests for lasting business rules. Tests may have guided development before the feature was whole, but a partial fix does not earn a permanent test of its own: as the approach changed, the tests, fixtures, and mocks that only describe an abandoned implementation are updated, consolidated, or removed. Preserve every assertion that still-required behavior depends on, and investigate a failing test before classifying it as obsolete.
+
+Prefer extending existing coverage. Add a lasting test for an identified important behavior or a realistic regression risk that existing checks do not establish. Do not multiply layers that prove the same thing without a distinct risk, and do not keep a diagnostic probe merely because it was useful during the investigation. Mocked behavior alone does not prove the completed flow works.
+
 ## 12. Run the project's validation pipeline
 
-Find the repository's own validation commands — its `CLAUDE.md`, README, package scripts, task runner, or CI configuration — and run the appropriate ones:
+Find the repository's own validation commands — its `CLAUDE.md`, README, package scripts, task runner, or CI configuration — and select the smallest meaningful checks for the affected behavior and risk. Run the required repository gates, and broaden only when a changed dependency, a failure, or an unresolved concern warrants it. Choose from:
 
 - formatting
 - linting
@@ -338,7 +342,7 @@ Investigate each failure far enough to classify it as:
 3. environmental or tooling related
 4. unknown, because the evidence is insufficient
 
-Fix the failures the work delta introduced. Do not opportunistically repair unrelated failures unless this work needs them fixed. After cleanup, rerun the affected checks and re-review the comparison against the verified baseline.
+Fix the failures the work delta introduced. Do not opportunistically repair unrelated failures unless this work needs them fixed. After the last relevant cleanup change, rerun the required affected checks and re-review the comparison against the verified baseline. Results whose inputs did not change stay valid; do not repeat the whole pipeline after every small edit, and do not restart validation merely because cleanup is a separate phase of the work.
 
 ## 13. Check documentation against reality
 

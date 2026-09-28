@@ -1,6 +1,6 @@
 # Delegating to Claude Code Subagents
 
-The root session is the senior engineer. Subagents are how it buys parallelism, context isolation, and independent verification — not how it avoids thinking.
+The root session is the senior engineer and the primary implementer. Subagents are how it buys parallelism, context isolation, and independent verification — not how it avoids thinking — and it uses them sparingly, only when a bounded assignment's concrete benefit outweighs the context, coordination, latency, and review it costs, or a governing instruction requires independent assistance.
 
 This document covers *when* to delegate, *what* to put in an assignment, and *how* to accept the result. `model-routing.md` covers the mechanics of model, effort, permissions, tools, and depth.
 
@@ -21,20 +21,24 @@ And two costs that are easy to underestimate:
 1. **Everything it needs must be in the prompt.** A vague assignment produces vague work, and you will not see the wrong turn — only the confident summary at the end.
 2. **You cannot see how it got there.** The final message is all you get, so the assignment must demand checkable evidence.
 
-Delegate a bounded piece when one of the advantages is a concrete benefit for it. Do not delegate a task you could finish in two tool calls; the round trip costs more than the work. Doing the work yourself is the default, including substantial multi-file work.
+Delegate a bounded piece when one of the advantages is a concrete benefit for it and outweighs the costs. Do not delegate a task you could finish in two tool calls; the round trip costs more than the work. Doing the work yourself is the default, including substantial multi-file work.
 
-## The roles
+## Role perspectives and helper assignments
 
-| Role | Model | Effort | Mode | Tools | Use it for |
+Each bundled definition separates its reusable **Role perspective** — what that role looks for and how it works — from the **Delegated use** rules that apply only to an actual subagent. The root may read a role's perspective and apply it directly to a concrete question: a reviewer's eye on its own diff, a triager's discipline about which checks mean something, an explorer's habit of mapping the whole affected flow. That changes nothing about the root's model, effort, permissions, approval gates, or ownership; it does not pick up the definition's launch settings or helper-only rules; it needs no separate report and no tour through the other roles. It is self-review, so it never satisfies a separately required independent-verification gate.
+
+A useful perspective is not a reason to launch a helper. Dispatch a role only when the bounded assignment itself is worth a separate agent.
+
+| Role | Default model | Effort | Mode | Tools | Typical delegated work |
 | --- | --- | --- | --- | --- | --- |
 | `read-only-explorer` | haiku | none | plan | Read, Grep, Glob | Mapping call paths, finding every call site, learning the local conventions before you design. |
 | `docs-researcher` | haiku | none | plan | Read, Grep, Glob, WebFetch, WebSearch | Verifying external library, API, or platform behavior against the version actually installed. |
-| `test-triager` | sonnet | high | default | Read, Grep, Glob, Bash, Edit | Reproducing a failure and finding its root cause with proof. Runs suites; plan-mode roles cannot. |
-| `isolated-worker` | sonnet | high | default | Read, Grep, Glob, Edit, Write, Bash | Implementing a bounded change whose design is already settled. |
-| `senior-reviewer` | sonnet | high | plan | Read, Grep, Glob, Bash | Reviewing a real artifact for defects, regressions, and risk before acceptance. |
-| `local-orchestrator` | sonnet | high | default | Agent + read/write/web | One slice that genuinely fans out into independent parallel parts. |
+| `test-triager` | opus | medium | default | Read, Grep, Glob, Bash, Edit | Reproducing a failure and finding its root cause with proof; choosing proportionate checks. Runs suites; plan-mode roles cannot. |
+| `isolated-worker` | opus | medium | default | Read, Grep, Glob, Edit, Write, Bash | Implementing a bounded change whose design is already settled. |
+| `senior-reviewer` | opus | medium | plan | Read, Grep, Glob, Bash | Reviewing a real artifact for defects, regressions, and risk before acceptance. |
+| `local-orchestrator` | opus | medium | default | Agent + read/write/web | One slice that genuinely fans out into independent parallel parts. |
 
-Each role has a fixed route: the two lookup roles run on `haiku` (which does not support `effort`), and the four judgment roles run on `sonnet` at `effort: high`. The model is pinned in the definition and also passed on the call. Every leaf role lists `disallowedTools: Agent`, which is what actually prevents a third layer of nesting. `model-routing.md` explains the split and what can override it.
+The model column is each definition's default for its typical work; the actual model is chosen per dispatch for the work assigned and passed on the call, within the approved routes — `haiku` for lookup and extraction, `opus` for judgment. Effort is set only in the definition, which is why there is exactly one definition per role rather than copies per effort level. Every leaf role lists `disallowedTools: Agent`, which is what actually prevents a third layer of nesting. `model-routing.md` explains the choice and what can override it.
 
 Definitions live in `agents/` and install to the Claude Code home agents directory. A repository can override or add roles under `.claude/agents/`.
 
@@ -52,7 +56,7 @@ Definitions live in `agents/` and install to the Claude Code home agents directo
 | "Audit these 15 files independently, then consolidate." | `local-orchestrator` |
 | "Design this system." | Nobody — that is the root's job. |
 
-Direct root execution is the default for a repository task. A helper has to earn its cost with independent evidence, genuinely parallel progress, or reading the root would rather keep out of its context. Availability, a low price, task size, an unused role, or a graph node are not reasons, and tightly coupled work or work already done is not delegated. Before the first dispatch the root sets a finite allowance of launches and retries within its actual authority, and for each helper notes what it returns, how it will be verified, and the benefit — without inventing savings figures. The root stays accountable for framing, integration, validation, and the final answer, and direct work waives none of the skill, reference, graph, or verification requirements.
+Direct root execution is the default for a repository task. A helper has to earn its cost with independent evidence, genuinely parallel progress, or reading the root would rather keep out of its context — and that benefit has to outweigh the context written into the assignment, the round trip, and the checking the result needs. Availability, a low price, task size, an unused role, a useful perspective, or a graph node are not reasons, and tightly coupled work or work already done is not delegated. No sequence of planner, implementer, reviewer, tester, and documentation passes is ever required. Before the first dispatch the root sets a finite allowance of launches and retries within its actual authority, and for each helper notes what it returns, how it will be verified, and the benefit — without inventing savings figures. The root stays accountable for framing, integration, validation, and the final answer, and direct work waives none of the skill, reference, graph, or verification requirements.
 
 ## Writing an assignment that works
 
@@ -105,7 +109,7 @@ The second one will come back with something confident and probably wrong, and y
 - **Skills** — the applicable skills, each with its entrypoint path, to read before the covered work. The bundled roles' `tools` allowlists omit `Skill`, so a helper cannot discover or invoke a skill itself.
 - **Write ownership** — for any subagent that edits, the exact files it owns. Concurrent writers must never share a file.
 - **Workspace** — the current one, unless the root has issued a worktree permit.
-- **Model** — the role's model, explicit on the call: `haiku` for a lookup role, `sonnet` for a judgment role. The role's frontmatter supplies its effort; there is no per-call effort parameter, so use the bundled role rather than a built-in agent type.
+- **Model** — chosen for the work and explicit on the call: `haiku` for lookup, extraction, or a summary you will check directly; `opus` for anything needing judgment. The role's frontmatter supplies its effort; there is no per-call effort parameter, so use the bundled role rather than a built-in agent type.
 
 Keep the payload small. Send paths and accepted results, not history, transcripts, or logs.
 
@@ -149,7 +153,7 @@ Verify:
 
 When two subagents disagree, resolve it with primary evidence: the code, the tests, the schema, the logs, the runtime behavior. Do not average their conclusions or prefer the more confident one.
 
-When a subagent fails, one retry with a sharper assignment is reasonable — after stating the failure evidence and what will change, and counting it against the allowance. A second identical failure is information — report the blocker rather than retrying again. Prefer a bounded correction or finishing the piece yourself over a chain of reviewers. A retry or a replacement stays on the role's route; do not rescue a failing assignment by escalating to `opus` or `fable` or by raising effort, and do not accept a substituted model as if it were the role's.
+When a subagent fails, one retry with a sharper assignment is reasonable — after stating the failure evidence and what will change, and counting it against the allowance. A second identical failure is information — report the blocker rather than retrying again. Prefer a bounded correction or finishing the piece yourself over a chain of reviewers. A retry or a replacement stays within the approved routes, chosen by the root for the work; do not rescue a failing assignment by escalating to `fable` or by raising effort, and do not accept a substituted model as if it were the one you chose. A helper that finds its route unsuitable returns evidence and the blocker; it never changes its own settings or anyone else's.
 
 Never accept a conclusion solely because it sounds confident.
 

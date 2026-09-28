@@ -12,7 +12,10 @@ fail() { FAILURES=$((FAILURES + 1)); printf 'FAIL  %s\n' "$*"; }
 READ_ONLY_AGENTS="read-only-explorer docs-researcher senior-reviewer"
 WRITE_AGENTS="test-triager isolated-worker local-orchestrator"
 ALL_AGENTS="$READ_ONLY_AGENTS $WRITE_AGENTS"
-# Lookup roles run on Haiku, which does not support effort; judgment roles run on Sonnet at high.
+# Each definition declares an approved default route: the two lookup roles Haiku with no
+# effort (Haiku has none), the four judgment roles Opus at medium. The model actually
+# dispatched is chosen per call for the work, within those routes. Only the six
+# playbook-managed definitions are checked; a user's own agents are never judged here.
 HAIKU_AGENTS="read-only-explorer docs-researcher"
 # Skill packages are discovered, not listed, so adding one needs no change here.
 SKILLS="$(for d in skills/*/; do [[ -d "$d" ]] && basename "$d"; done | sort)"
@@ -36,13 +39,20 @@ for name in $ALL_AGENTS; do
   done
 
   grep -Eq "^name:[[:space:]]*$name[[:space:]]*$" "$f" || fail "$f: name does not match filename"
+  model="$(sed -n 's/^model:[[:space:]]*\([^[:space:]]*\)[[:space:]]*$/\1/p' "$f" | head -1)"
+  effort="$(sed -n 's/^effort:[[:space:]]*\([^[:space:]]*\)[[:space:]]*$/\1/p' "$f" | head -1)"
+  case "$model/${effort:-none}" in
+    haiku/none|opus/medium) ;;
+    *) fail "$f: default route must be an approved model/effort pair (haiku with no effort, or opus with effort: medium); found model '$model' effort '${effort:-none}'" ;;
+  esac
   if [[ " $HAIKU_AGENTS " == *" $name "* ]]; then
-    grep -Eq '^model:[[:space:]]*haiku[[:space:]]*$' "$f" || fail "$f: lookup role must use model: haiku"
-    grep -q '^effort:' "$f" && fail "$f: Haiku does not support effort; remove the effort field"
+    [[ "$model" == haiku ]] || fail "$f: lookup role must default to model: haiku"
   else
-    grep -Eq '^model:[[:space:]]*sonnet[[:space:]]*$' "$f" || fail "$f: judgment role must use model: sonnet"
-    grep -Eq '^effort:[[:space:]]*high[[:space:]]*$' "$f" || fail "$f: judgment role must use effort: high"
+    [[ "$model" != haiku ]] || fail "$f: judgment role must not default to Haiku"
   fi
+  for heading in '## Role perspective' '## Applying this perspective directly' '## Delegated use'; do
+    grep -Fxq "$heading" "$f" || fail "$f: missing the '$heading' section separating role perspective from delegated use"
+  done
   grep -Eq '^isolation:[[:space:]]*worktree' "$f" && fail "$f: must not set isolation: worktree"
 
   if [[ " $READ_ONLY_AGENTS " == *" $name "* ]]; then
@@ -152,7 +162,7 @@ fi
 rm -f "$PATH_ISSUES"
 
 echo "== no vocabulary from another coding-agent environment =="
-if grep -rnE 'CODEX_HOME|\.codex/|gpt-5\.6-luna|Luna/max|model_reasoning_effort|AGENTS\.md|openai\.yaml' \
+if grep -rnE 'CODEX_HOME|\.codex/|gpt-5\.6-luna|gpt-6-(luna|sol|astra)|Luna/max|Sol/(medium|high)|Astra/xhigh|model_reasoning_effort|service_tier|AGENTS\.md|openai\.yaml' \
     --include='*.md' --include='*.py' --include='*.sh' --include='*.ps1' --include='*.yml' . \
     | grep -v '^./.git/' | grep -v '^./scripts/validate.sh:'; then
   fail "the files above carry configuration or model vocabulary from another coding-agent environment"

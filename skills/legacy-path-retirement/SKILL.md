@@ -20,7 +20,11 @@ Identify:
 - the repository's support commitments — supported versions, deprecation windows, published contracts — from its `CLAUDE.md`, release documentation, or the user
 - the product stage, and which actions the task actually authorizes
 
-Do not infer pre-production status, or that data is disposable, from a development environment. Pre-production usually makes a direct consolidation practical when no supported older consumer exists; it does not remove current integrations, useful configuration, release constraints, or correctness requirements. Production may need a bounded migration. That is an evidence-based dependency, not a reason to keep every old path.
+Inspect the whole affected flow and identify which existing parts remain correct. Improve that implementation by default. Replacing a substantial part needs evidence of a significant benefit that justifies the implementation, migration, verification, and maintenance costs; preserve the components that are suitable. When that choice is consequential, use the engineering-design decision aid through `reference-doc-routing`.
+
+Do not infer pre-production status, or that data is disposable, from a development environment. Pre-production usually makes a direct consolidation practical when no supported older consumer exists; it does not remove current integrations, useful configuration, release constraints, or correctness requirements, and it does not justify rebuilding a flow that works. Production may need a bounded migration. That is an evidence-based dependency, not a reason to keep every old path.
+
+Hypothetical users, obsolete test accounts, fixtures, seed data, and earlier development implementations are not support commitments. Their existence alone requires no adapter, fallback, dual flow, or test that preserves the old behavior. An onboarding change in an alpha product, for example, follows the intended current flow; whether the old seeded accounts hold anything worth keeping is a separate data question under Section 5, and it does not create a second supported onboarding flow.
 
 ## 2. Keep three decisions separate
 
@@ -82,6 +86,8 @@ Code that was introduced and superseded within the same unmerged branch never re
 ## 5. Keep data disposition independent
 
 Existing development records do not justify permanent dual writers or compatibility layers. Decide separately whether they hold useful data or configuration, and choose a deliberate way to preserve or migrate them.
+
+Distinguish confirmed disposable test data from useful or required records. When resetting disposable data is explicitly authorized, use the project's existing reset or seed tooling rather than inventing a path. Missing reset authority is a question about that exact data operation to put to the user; it is never a reason to build a permanent compatibility system around the data instead.
 
 A request to simplify code is not permission to reset a database, drop stored files, remove user configuration, or discard records that do not map cleanly. Before any destructive data step, resolve the exact targets, what depends on them, the consequences, the recovery options, and the authority for that exact action. Follow the repository's migration policy, and do not erase historical migrations or durable contract history because the runtime code that used them is gone.
 

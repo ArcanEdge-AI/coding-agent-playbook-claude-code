@@ -69,14 +69,14 @@ Execute only these — yourself by default, or through a helper only where the n
 
 ## Helper Assignments (optional)
 
-Fill this in only for nodes a helper executes; delete it when the root executes every node. The allowance in **Budgets** bounds this table, and nothing in the graph above implies a row here.
+Fill this in only for nodes a helper executes; delete it when the root executes every node. The allowance in **Budgets** bounds this table, and nothing in the graph above implies a row here: a helper appears only where its concrete benefit for that node outweighs its context, coordination, and review cost.
 
-| Node | Role | Model on the call | Role's fixed effort | Mode / tools | Skills named (with entrypoint paths) | Write ownership | Acceptance evidence | Launches used |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| N2 | [bundled role] | [haiku or sonnet, per role] | [none for the Haiku roles, high for the Sonnet roles] | [permissionMode / tools] | [skill → path, or None] | [paths, disjoint from every other writer] | [what came back and how you checked it] | [1, plus any retry] |
+| Node | Role | Why a helper | Model on the call | Role's effort | Mode / tools | Skills named (with entrypoint paths) | Write ownership | Acceptance evidence | Launches used |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| N2 | [bundled role] | [independent evidence, parallel progress, or context kept out] | [haiku or opus, chosen for this node's work] | [none for the Haiku roles, medium for the Opus roles] | [permissionMode / tools] | [skill → path, or None] | [paths, disjoint from every other writer] | [what came back and how you checked it] | [1, plus any retry] |
 
-- **Model** is the role's model, passed explicitly on every dispatch: `haiku` for `read-only-explorer` and `docs-researcher`, `sonnet` for the four judgment roles. It holds at every layer and for every retry and replacement, and does not follow the main session's model. A forced subagent model (`CLAUDE_CODE_SUBAGENT_MODEL_FORCE`) or an allowlist substitution is a constraint to record and report, not a substitute to accept silently.
-- **Effort** is fixed in the definition: `high` on the four Sonnet roles, none on the two Haiku roles (Haiku does not support it). There is no per-dispatch effort parameter, which is why helpers are bundled roles rather than built-in agent types. It overrides session effort and is not a ceiling inherited from the caller.
+- **Model** is chosen for the node's work and passed explicitly on every dispatch, within the approved routes: `haiku` for lookup, extraction, or a summary the root checks directly; `opus` for judgment. Each definition's `model` is only the default for its typical work. The approved routes hold at every layer and for every retry and replacement, and the choice never follows the main session's model. A forced subagent model (`CLAUDE_CODE_SUBAGENT_MODEL_FORCE`) or an allowlist substitution is a constraint to record and report, not a substitute to accept silently.
+- **Effort** is set only in the definition: `medium` on the four Opus roles, none on the two Haiku roles (Haiku does not support it). There is no per-dispatch effort parameter, which is why helpers are bundled roles rather than built-in agent types and why there is one definition per role. It overrides session effort and is not a ceiling inherited from the caller.
 - **Mode / tools** must be no broader than the caller's. Remember that `plan`-mode roles cannot reliably run test suites; route execution to `test-triager`.
 - **Skills** are named with their entrypoint paths because the bundled roles' `tools` allowlists omit `Skill`; a helper reads the skill before the covered work.
 
@@ -86,11 +86,11 @@ Fill this in only where a node uses `local-orchestrator`, the one authorized nes
 
 | Parent node | Leaves dispatched | Write ownership (must be disjoint) | Inherited boundary | Child route | Returned |
 | --- | --- | --- | --- | --- | --- |
-| N1 | [leaf roles and subtasks] | [paths or state; no overlap] | [inputs, data, scope, permissions, tools, workspace, authority] | per role: haiku, or sonnet / high (same as every layer) | [artifacts, evidence, blockers] |
+| N1 | [leaf roles and subtasks] | [paths or state; no overlap] | [inputs, data, scope, permissions, tools, workspace, authority] | per leaf's work: haiku, or opus at the definition's medium (approved routes are the same at every layer) | [artifacts, evidence, blockers] |
 
 Claude Code allows nesting three layers below the main conversation by default; this playbook uses two. `local-orchestrator` may dispatch immediately — there is no flag to verify. The cap holds because every leaf role omits `Agent` from `tools` and lists it in `disallowedTools`.
 
-Retries reuse the node ID, workspace, and route, and each helper retry consumes the allowance; state the failure evidence and what will change before retrying. A second identical failure is information — report the blocker rather than retrying again. Only the root introduces a replacement node, and it runs on the same per-role route; a task that route cannot finish needs a sharper assignment or the root's own judgment, not a larger model or more effort.
+Retries reuse the node ID and workspace, stay within the approved routes, and each helper retry consumes the allowance; state the failure evidence and what will change before retrying. A second identical failure is information — report the blocker rather than retrying again. Only the root introduces a replacement node or changes a helper's route, on task evidence and within the allowance; a task the approved routes cannot finish needs a sharper assignment or the root's own judgment, not a larger model or more effort.
 
 ## Worktree Lifecycle
 
@@ -146,7 +146,7 @@ Give a verifier the source artifacts and acceptance criteria, not the producer's
 
 - The root owns topology, ready-set transitions, execution by default, integration, authority-bound actions, and final acceptance. A node is not a reason to launch a helper, and the graph authorizes no helpers, nesting, worktrees, or spending by itself.
 - `local-orchestrator` manages only its own subtree and never changes root topology or advances root-ready work.
-- Every child stays at or below its parent in permissions, tools, scope, data access, workspace, and authority. Model and effort are fixed per role at every layer; pass the model explicitly, and treat a dispatch whose effective model you cannot determine as a constraint to report.
+- Every child stays at or below its parent in permissions, tools, scope, data access, workspace, and authority. The model is chosen for the work within the approved routes at every layer and passed explicitly, and effort comes from the definition; treat a dispatch whose effective model you cannot determine as a constraint to report.
 - A dependency is real only when the downstream node consumes an accepted upstream artifact or decision.
 - Keep completed outputs unless their inputs actually became invalid.
 - Update the ready set after every accepted, failed, blocked, or superseded node.

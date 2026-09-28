@@ -62,8 +62,17 @@ AGENT_NAMES = (
     "test-triager",
 )
 READ_ONLY_AGENTS = frozenset({"read-only-explorer", "docs-researcher", "senior-reviewer"})
+# The two lookup roles default to Haiku; the four judgment roles default to Opus 5.5.
+# The actual model is chosen per dispatch for the work, within the approved routes.
 HAIKU_AGENTS = frozenset({"read-only-explorer", "docs-researcher"})
+# Approved default routes as (model, effort). Haiku has no effort levels, so its
+# route carries None; Opus 5.5 runs at medium, Anthropic's documented default for it.
+# Sonnet, Fable, inherit, and any effort above medium are deliberately not helper routes.
+APPROVED_ROUTES = frozenset({("haiku", None), ("opus", "medium")})
 FRONTMATTER_KEYS = ("name", "description", "model", "permissionMode", "tools", "disallowedTools")
+# Each definition separates the perspective the root may apply directly from the
+# rules that bind an actual subagent; these headings are the contract.
+REQUIRED_SECTIONS = ("## Role perspective", "## Applying this perspective directly", "## Delegated use")
 
 # A path written inside a skill's Markdown that must resolve inside that skill's
 # own package. The lookbehind keeps "skills/x/references/y" (a Claude-home path)
@@ -165,16 +174,18 @@ def check_agent_definition(name: str, text: str) -> List[str]:
     elif mode != "default":
         problems.append("write-capable role must use permissionMode: default")
 
+    route = (data.get("model"), data.get("effort"))
+    if route not in APPROVED_ROUTES:
+        problems.append("default route must be an approved model/effort pair: haiku with no effort, or opus with effort: medium")
     if name in HAIKU_AGENTS:
         if data.get("model") != "haiku":
-            problems.append("lookup role must use model: haiku")
-        if "effort" in data:
-            problems.append("Haiku does not support effort; remove the effort field")
-    else:
-        if data.get("model") != "sonnet":
-            problems.append("judgment role must use model: sonnet")
-        if data.get("effort") != "high":
-            problems.append("judgment role must use effort: high")
+            problems.append("lookup role must default to model: haiku")
+    elif data.get("model") == "haiku":
+        problems.append("judgment role must not default to Haiku; judgment work is never dispatched to a lookup model")
+    body = text.split("\n---\n", 1)[1] if "\n---\n" in text else ""
+    for heading in REQUIRED_SECTIONS:
+        if not re.search(rf"^{re.escape(heading)}\s*$", body, re.MULTILINE):
+            problems.append(f"missing the '{heading}' section that separates role perspective from delegated use")
 
     if name == "local-orchestrator":
         if "Agent" not in tools:
@@ -533,7 +544,7 @@ class Installer:
                 for problem in problems:
                     self.fail(f"{agent}: {problem}")
             else:
-                self.say(f"OK Claude Code frontmatter, per-role route, and tool boundary: {agent}")
+                self.say(f"OK Claude Code frontmatter, approved default route, perspective/delegated sections, and tool boundary: {agent}")
         self.validate_skill_references(self.claude_home / "skills")
 
     # ----- run ----------------------------------------------------------------

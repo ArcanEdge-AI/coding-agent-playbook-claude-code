@@ -19,7 +19,7 @@ Problem and scope:
 Simpler paths:
 
 4. Could a different approach eliminate the problem, or the need for new machinery, entirely?
-5. Can an existing capability — a component, dialog, hook, validator, utility, interaction pattern, library already in use, or field that already exists — satisfy the requirement as it is, or by composing or extending it?
+5. Which parts of the affected flow — its entry points, shared behavior, business rules, data changes, consumers, and success and failure outcomes — already satisfy the requirement? Can an existing capability there — a component, dialog, hook, validator, utility, interaction pattern, library already in use, or field that already exists — satisfy the rest as it is, or by composing, extending, or improving it?
 6. Can the implementation be clearer or smaller while remaining complete, including integration and verification?
 7. Does the existing architecture already provide the appropriate pattern? If you are departing from it, what makes the existing pattern harmful or insufficient here?
 
@@ -46,6 +46,8 @@ Prefer clear responsibilities and small interfaces. Wrappers, managers, factorie
 
 ## Simpler approaches and complete fixes
 
+**Improve before you replace.** Inspect the whole affected flow before choosing its replacement. Improve the existing implementation by default, preserving the components and boundaries that are suitable. A substantial replacement needs evidence of a significant benefit that outweighs its implementation, migration, verification, and maintenance costs — another valid design, a personal preference, or the project's alpha status is not that evidence. Concrete evidence looks like repeated defects at the same boundary, two implementations competing for the same job, a requirement that currently forces coordinated edits across unrelated modules, or a measured performance or operating cost that motivates the change. Do not invent a percentage for code quality, and do not use line count as a proxy for maintainability. Necessary correctness and security fixes remain required either way.
+
 **Derived versus stored state.** If a value can be reliably derived from existing state, storing a second copy creates synchronization and consistency work that never ends. Inspect the actual requirement — latency, atomicity, audit — before introducing the copy, and if you do, name the invariant that keeps the two in step.
 
 **Workaround versus boundary fix.** A small patch that repeats a workaround at each call site can cost more to maintain than a focused change at the correct boundary. Compare the two by completeness, affected surfaces, reliability, and verification needs — not by counting changed lines. A broader root cause is not permission for an unrelated redesign; it is a reason to fix the boundary that is in scope and report the rest.
@@ -53,6 +55,8 @@ Prefer clear responsibilities and small interfaces. Wrappers, managers, factorie
 **Structural change versus smaller patch.** A necessary structural change can be the smallest complete solution when the alternative is a workaround that introduces hidden coupling, a second source of truth, or a fragile special case. Prefer the structural change when it is within scope and its benefit is concrete; prefer the targeted change when it solves the problem completely on its own.
 
 **Change amplification as a signal.** If a one-line requirement change would touch five files across three layers, the structure is misaligned with how the requirement actually varies. That does not always mean fix it now — but it should be named, and it should inform where the current change lands.
+
+**Tests are part of the maintenance surface.** Fixtures and mocks too. Retain tests for the intended final behavior and credible regression risks, including focused unit tests for lasting rules; update or remove tests that only describe an abandoned intermediate fix. Prefer extending existing coverage over a parallel suite, do not add a permanent test for every helper or step, and do not reshape sound production code solely to make a low-value test possible.
 
 ## Material technical debt
 
@@ -76,7 +80,9 @@ Before calling a meaningful change done, ask:
 - Is anything in it speculative — flexibility, configurability, or generality nobody asked for and no current requirement uses?
 - Did it introduce a duplicated source of truth, hidden coupling, or a workaround where a boundary fix was in scope?
 - Does it duplicate a component, hook, validator, or utility the project already had?
-- Did it keep a legacy path without a demonstrated dependency, or remove one while a consumer was still unresolved?
+- Did it keep a legacy path without a demonstrated dependency, or remove one while a consumer was still unresolved? Did it invent a support commitment for a hypothetical user, an old test account, a fixture, or an earlier implementation?
+- Did it replace a working part of the flow without evidence of a benefit that justifies the migration, verification, and maintenance cost?
+- Does every remaining test describe the intended final behavior or a realistic regression risk, rather than an abandoned approach or an implementation detail?
 - Would a small change in the requirement now ripple further than it should?
 - Is every material tradeoff recorded with scope, rationale, and follow-up condition?
 - Can it be tested, debugged, replaced, and removed without archaeology?
