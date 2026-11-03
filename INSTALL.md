@@ -10,6 +10,8 @@ https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code
 
 Follow INSTALL.md. Use full install unless I explicitly ask for support-only mode.
 Preserve my existing files with backups and report exactly what changed.
+Then install or update the companion plugins INSTALL.md lists to their latest
+versions from their official sources.
 ```
 
 ## What Gets Installed
@@ -97,7 +99,7 @@ $CLAUDE_HOME/
     production-api-integration/          # and the ten other production-* specialist lanes
 ```
 
-The last group is shown by directory only. The repository's `README.md` shows each package's layout, and the repository's `skills/` directory is the complete file list. Third-party skills are not bundled; they install as [companion plugins](#companion-plugins).
+The last group is shown by directory only. The repository's `README.md` shows each package's layout, and the repository's `skills/` directory is the complete file list. Third-party and separately maintained skills are not bundled: download them separately, at their latest versions, as [companion plugins](#companion-plugins).
 
 Every skill is a self-contained package: its `SKILL.md` and every reference or template it depends on install together under the skill's own directory, and a path written inside a skill resolves against that skill's package root. There is no top-level `references/` directory in the Claude Code home; the `reference-doc-routing` skill packages the catalog of the workflow skills' references and templates by owning skill, and each domain skill names its own resources in its `SKILL.md`.
 
@@ -151,10 +153,12 @@ Support-only reruns use the same marker validation and replacement rules, so ins
 
 ### What installing does not run
 
-The installer copies files. It runs no bundled script, downloads nothing, installs no plugin, and configures no hooks. Some packages ship helpers that their own workflows run later, each under that session's permissions:
+The installer copies files. It runs no bundled script, downloads nothing, installs no plugin, and configures no hooks. Download these separately:
 
-- **Helper scripts.** `platform-documentation`, `technical-debt-auditor`, and `production-readiness-report` ship standard-library Python helpers that need Python 3.9 or later. A skill runs one only when its workflow calls for it.
+- **Companion plugins.** They are part of the full setup, but this repository does not include them. Install each one from its official source, and update it on every playbook install or update so it always runs its latest version. See [Companion Plugins](#companion-plugins).
+- **Python for helper scripts.** `platform-documentation`, `technical-debt-auditor`, and `production-readiness-report` ship standard-library Python helpers that need Python 3.9 or later. A skill runs one only when its workflow calls for it, under that session's permissions.
 - **Local AWS emulation.** `aws-local-preflight` expects the project to supply Moto. The skill does not install it, start shared services, or call AWS.
+- **A code-knowledge-graph tool, optionally.** `technical-debt-auditor` uses one, such as GitNexus, when the session already has it, and works without it.
 
 ## Human Install
 
@@ -224,30 +228,30 @@ When an AI coding agent is asked to install this repository, it should:
 6. Use full install for both installation and update unless the user explicitly asks for support-only mode. Existing global instructions, markers, or support files are not permission to change modes.
 7. Run `install/install.py` (directly, or through a launcher) so the complete skill packages and custom Claude Code subagent definitions land in the expected user-level locations.
 8. Validate the installed files and Claude Code YAML frontmatter. The installer does this and exits non-zero on failure — check the exit code, do not just read the output.
-9. Report exactly what changed, what was skipped, and where backups were written.
+9. Install or update the companion plugins, because the installer never downloads them. Do this when the user's request includes them, as the install prompt above does; otherwise list them and ask first. For each companion in [Companion Plugins](#companion-plugins), check `claude plugin list`: install a missing one, and update an installed one after refreshing its marketplace, so every companion ends on its latest version. If `claude plugin list` or the user shows that a companion was enabled from the Anthropic Directory, do not add a marketplace copy or run the marketplace update for it; report it, and point the user to its Directory listing for its latest version. Never pin a version, and never copy a plugin into `$CLAUDE_HOME/skills/`. Tell the user to restart Claude Code so updated plugins load.
+10. Report exactly what changed, what was skipped, and where backups were written, with each companion's result reported separately from the playbook install.
 
 Do not modify arbitrary repositories during installation. Only use a temporary clone of this repository and user-level Claude Code configuration locations.
 
-The installer does not install companion plugins. Install one only when the user asks for it, and report its result separately from the playbook install.
-
 ## Companion Plugins
 
-Third-party and separately maintained skills are not bundled. Install them from their official Claude distribution, so each keeps its own license, notices, and updates. The listings below were checked on 2026-11-03; each project's own listing is the source of truth, so do not pin an older copy to match these versions. [THIRD_PARTY.md](THIRD_PARTY.md) credits each one.
+The full setup includes four companion plugins, but this repository does not bundle them, so you need to download each one separately from its official Claude distribution. That way each keeps its own license, notices, and updates. Always take a companion's latest version: install its current release, then update it on every playbook install or update. Never pin a version, and never keep a copied older release. Availability below was checked on 2026-11-03; each project's own listing is the source of truth. [THIRD_PARTY.md](THIRD_PARTY.md) credits each one.
 
 | Companion | What it adds | Official Claude distribution |
 | --- | --- | --- |
-| Intuitive Software Design (ArcanEdge AI, Apache-2.0) | Eight design and evaluation skills: `intuitive-software-design`, `purpose-first-redesign`, `user-task-walkthrough`, `product-mental-model`, `decision-support-design`, `multi-role-workflow`, `connected-experience-design`, and `behavioral-evaluation` | The Anthropic Directory (version 1.3.1, directory-reviewed); also the `arcanedge-plugins` marketplace in [ArcanEdge-AI/intuitive-software-design](https://github.com/ArcanEdge-AI/intuitive-software-design) |
-| Impeccable (Paul Bakaus, Apache-2.0) | Frontend design commands, design critique and audit, and anti-pattern detection | The `impeccable` marketplace in [pbakaus/impeccable](https://github.com/pbakaus/impeccable) (plugin version 4.8.0) |
-| Taste (Leonxlnx, MIT) | Art direction for websites, product pages, dashboards, and app screens, checked in a real browser; provides the `design-taste-frontend` skill | The `taste-skill` marketplace in [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) (plugin version 2.1.5) |
-| Humanizer (blader, MIT) | Editing AI-sounding prose without changing what it says | The Anthropic Directory; also the `humanizer` marketplace in [blader/humanizer](https://github.com/blader/humanizer) (plugin version 3.1.0) |
+| Intuitive Software Design (ArcanEdge AI, Apache-2.0) | Design, review, and evaluation skills for screens, workflows, navigation, forms, and product behavior | The `arcanedge-plugins` marketplace in [ArcanEdge-AI/intuitive-software-design](https://github.com/ArcanEdge-AI/intuitive-software-design); also listed in the Anthropic Directory |
+| Impeccable (Paul Bakaus, Apache-2.0) | Frontend design commands, design critique and audit, and anti-pattern detection | The `impeccable` marketplace in [pbakaus/impeccable](https://github.com/pbakaus/impeccable) |
+| Taste (Leonxlnx, MIT) | Art direction for websites, product pages, dashboards, and app screens, checked in a real browser; provides the `design-taste-frontend` skill | The `taste-skill` marketplace in [Leonxlnx/taste-skill](https://github.com/Leonxlnx/taste-skill) |
+| Humanizer (blader, MIT) | Editing AI-sounding prose without changing what it says | The `humanizer` marketplace in [blader/humanizer](https://github.com/blader/humanizer); also listed in the Anthropic Directory |
 
-### From the Anthropic Directory
+### Install the latest version
 
-Intuitive Software Design and Humanizer are listed in the Anthropic Directory, the plugin catalog in Claude. Install them from there. The Anthropic Directory is separate from the `claude-plugins-official` Claude Code marketplace, which did not list any of these four companions on 2026-11-03.
+In the Claude Code CLI, add the publisher's marketplace, then install the plugin from it. If a marketplace is already configured, refresh it with `claude plugin marketplace update <marketplace>` before installing, so the install reads the publisher's current catalog rather than an old copy.
 
-### From a Claude Code plugin marketplace
-
-In the Claude Code CLI, add the publisher's marketplace, then install the plugin from it. These are Claude Code's own plugin commands, as `claude plugin --help` describes them in Claude Code 2.1.281, applied to each project's published `.claude-plugin/marketplace.json`; they were not exercised for this release. Inside a session, the `/plugin` command does the same.
+```bash
+claude plugin marketplace add ArcanEdge-AI/intuitive-software-design
+claude plugin install intuitive-software-design@arcanedge-plugins
+```
 
 ```bash
 claude plugin marketplace add pbakaus/impeccable
@@ -264,18 +268,29 @@ claude plugin marketplace add blader/humanizer
 claude plugin install humanizer@humanizer
 ```
 
+### Update to the latest version
+
+Run this on every playbook install or update. `claude plugin marketplace update` with no name refreshes every configured marketplace, and `claude plugin update` then moves each installed companion to its latest version. Run the update line for each companion that `claude plugin list` shows, and install any missing companion with the commands under [Install the latest version](#install-the-latest-version). Restart Claude Code to load the updated plugins.
+
 ```bash
-claude plugin marketplace add ArcanEdge-AI/intuitive-software-design
-claude plugin install intuitive-software-design@arcanedge-plugins
+claude plugin marketplace update
+claude plugin update intuitive-software-design@arcanedge-plugins
+claude plugin update impeccable@impeccable
+claude plugin update taste-skill@taste-skill
+claude plugin update humanizer@humanizer
 ```
 
-Confirm each result with `claude plugin list`, which lists installed plugins (in Claude Code 2.1.281 each entry shows its version, scope, and status); a cached directory alone does not prove an installation.
+These are Claude Code's own plugin commands, as `claude plugin --help` describes them in Claude Code 2.1.281, applied to each project's published `.claude-plugin/marketplace.json`; the install and update commands were not exercised against these four plugins for this release. Inside a session, the `/plugin` command does the same. Confirm each result with `claude plugin list`, which lists installed plugins (in Claude Code 2.1.281 each entry shows its version, scope, and status); a cached directory alone does not prove an installation.
+
+### From the Anthropic Directory
+
+Intuitive Software Design and Humanizer are also listed in the Anthropic Directory, the plugin catalog in Claude, where you can enable them instead. The update commands above apply to marketplace installs. This guide did not verify how the Directory delivers updates, so check a Directory companion's listing for its current version. The Anthropic Directory is separate from the `claude-plugins-official` Claude Code marketplace, which did not list any of these four companions on 2026-11-03.
 
 ### Using companions with this playbook
 
 - The playbook's global instructions still apply inside a companion's workflow: downloads, package installs, network or paid calls, and hook changes need the user's approval; retained tests are E2E; and helpers stay optional and bounded.
 - Impeccable's own README notes that in Claude Code, installed command hooks run even when you deny the model's own commands, so a first edit can download its engine. Review any hooks a plugin installs before unattended runs.
-- A copy of a companion kept directly under `$CLAUDE_HOME/skills/`, such as an older `intuitive-software-design` or `design-taste-frontend`, is a separate installation that loads alongside the plugin. The playbook installer never touches it; remove it yourself once the plugin is installed, so only one version is active.
+- A copy of a companion kept directly under `$CLAUDE_HOME/skills/`, such as an older `intuitive-software-design` or `design-taste-frontend`, is a separate installation that loads alongside the plugin and never updates. The playbook installer never touches it; remove it yourself once the plugin is installed, so only the latest version is active.
 
 ## Validation Checklist
 

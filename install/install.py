@@ -601,8 +601,8 @@ class Installer:
         if not self.dry_run and self.backup_root.is_dir():
             self.say(f"Backups for this run: {self.backup_root}")
         self.say(
-            "Companion plugins install separately from their official sources and are not "
-            "installed by this playbook; see INSTALL.md, Companion Plugins."
+            "Next, install or update the companion plugins to their latest versions; this "
+            "installer does not include them. See INSTALL.md, Companion Plugins."
         )
         if self.failures:
             self.say()

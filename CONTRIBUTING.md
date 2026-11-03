@@ -81,7 +81,7 @@ CI runs the automated checks. Run them locally first with `bash scripts/validate
 - `README.md`'s repository-structure block matches the actual tree.
 - Unix shell scripts remain LF-only.
 - Testing guidance retains E2E tests only and treats every created unit test as temporary, whatever its purpose: no created unit test remains in a completed change, and removal waits until passing replacement E2E coverage carries its still-required assertions. Static checks, required assertions, and repository gates are preserved.
-- No third-party skill is vendored. A companion links to its official Claude distribution, has a `THIRD_PARTY.md` row, and states availability, versions, and install commands only as far as they were verified, with the date.
+- No third-party skill is vendored. A companion links to its official Claude distribution, has a `THIRD_PARTY.md` row, states availability and install commands only as far as they were verified, with the date, and pins no version. The install instructions tell users to download each companion and to install or update it to its latest version.
 - Any change to the facts listed above was verified against current Claude Code documentation and reflected in `CLAUDE.md`.
 - The change adds nothing for another coding-agent environment.
 - No sensitive or private material was added.
