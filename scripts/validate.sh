@@ -26,6 +26,16 @@ native_path() {
   if command -v cygpath >/dev/null 2>&1; then cygpath -w "$1"; else printf '%s' "$1"; fi
 }
 
+# Repository files the checks read: tracked files plus new files that are not
+# ignored. On a clean CI checkout this is exactly `git ls-files`; locally it also
+# covers a new skill package before its first commit, which the installer already
+# discovers from the tree. core.quotePath=false prints a non-ASCII name as itself,
+# not as a quoted escape that the existence test would silently drop.
+repo_files() {
+  git -c core.quotePath=false ls-files --cached --others --exclude-standard -- "$@" | sort -u \
+    | while IFS= read -r p; do [[ -e "$p" ]] && printf '%s\n' "$p"; done
+}
+
 echo "== agent definitions =="
 for name in $ALL_AGENTS; do
   f="agents/$name.md"
@@ -113,23 +123,32 @@ echo "== markdown fences balanced =="
 while IFS= read -r f; do
   n=$(grep -c '^```' "$f" || true)
   (( n % 2 != 0 )) && fail "$f: unbalanced code fences ($n)"
-done < <(git ls-files '*.md')
+done < <(repo_files '*.md')
 pass "code fences checked"
 
 echo "== referenced paths resolve =="
-# Repository-relative paths must exist. A `references/...` path written inside a
-# skill resolves against that skill's package root; outside skills/ it is a
-# stale pointer to the former top-level directory.
+# Repository-relative paths must exist. Inside a skill, a `references/`,
+# `scripts/`, or `assets/` path — bare or written from the stated skill base
+# directory as `<skill-base-dir>/...` — resolves against that skill's package
+# root, the same rule install/install.py enforces. A project path such as
+# `./scripts/x` is not a package resource. Outside skills/, a `references/...`
+# path is a stale pointer to the former top-level directory.
 PATH_ISSUES="$(mktemp)"
 while IFS= read -r f; do
-  grep -oE '(^|[^A-Za-z0-9_./-])(skills|agents|claude-prompts|custom-instructions|install|assets|scripts)/[A-Za-z0-9._/-]+' "$f" \
+  if [[ "$f" == skills/*/* ]]; then
+    root_dirs='skills|agents|claude-prompts|custom-instructions|install'
+  else
+    root_dirs='skills|agents|claude-prompts|custom-instructions|install|assets|scripts'
+  fi
+  grep -oE "(^|[^A-Za-z0-9_./-])($root_dirs)/[A-Za-z0-9._/-]+" "$f" \
     | sed -E 's/^[^a-z]//; s/[.,:;)]*$//' | sort -u | while read -r p; do
       [[ -e "$p" ]] || echo "$f: referenced path does not exist: $p"
     done
   if [[ "$f" == skills/*/* ]]; then
     skill_root="${f%%/*}/$(cut -d/ -f2 <<<"$f")"
-    grep -oE '(^|[^A-Za-z0-9_./-])references/[A-Za-z0-9._/-]+' "$f" \
-      | sed -E 's/^[^a-z]//; s/[.,:;)]*$//' | grep -v '\.\.' | sort -u | while read -r p; do
+    grep -oE '(^|[^A-Za-z0-9_./-])(<skill-(base-)?dir>/)?(references|scripts|assets)/[A-Za-z0-9._/-]+' "$f" \
+      | sed -E 's/^[^a-z<]//; s/^<skill-(base-)?dir>\///; s/^<//; s/[.,:;)]*$//' \
+      | grep -v '\.\.' | sort -u | while read -r p; do
         [[ -e "$skill_root/$p" ]] || echo "$f: skill-local resource does not resolve inside its package: $p"
       done
   else
@@ -153,7 +172,7 @@ while IFS= read -r f; do
         echo "$f: refers to a top-level references/ path that no longer exists: $p"
       done
   fi
-done < <(git ls-files '*.md') > "$PATH_ISSUES"
+done < <(repo_files '*.md') > "$PATH_ISSUES"
 if [[ -s "$PATH_ISSUES" ]]; then
   while read -r line; do fail "$line"; done < "$PATH_ISSUES"
 else
@@ -162,19 +181,47 @@ fi
 rm -f "$PATH_ISSUES"
 
 echo "== no vocabulary from another coding-agent environment =="
-if grep -rnE 'CODEX_HOME|\.codex/|gpt-5\.6-luna|gpt-6-(luna|sol|astra)|Luna/max|Sol/(medium|high)|Astra/xhigh|model_reasoning_effort|service_tier|AGENTS\.md|openai\.yaml' \
-    --include='*.md' --include='*.py' --include='*.sh' --include='*.ps1' --include='*.yml' . \
-    | grep -v '^./.git/' | grep -v '^./scripts/validate.sh:'; then
-  fail "the files above carry configuration or model vocabulary from another coding-agent environment"
-else
+# This repository is Claude Code only, so this deny-list is the one place these
+# names appear. Every repository text file is scanned, whatever its type; grep -I
+# skips binary files such as the README banner image, which the maintainer keeps
+# as is. xargs cannot report "any file matched" through its exit status, so the
+# check tests the output instead, and anything grep writes to stderr — an
+# unreadable file or a broken pattern — fails the check rather than passing it.
+FOREIGN='CODEX_HOME|(^|[^A-Za-z])[Cc]odex([^A-Za-z]|$)|[Oo]pen[Aa][Ii]|ChatGPT|(^|[^A-Za-z])[Cc]opilot([^A-Za-z]|$)|gpt-[0-9]|gpt-image|Luna/max|Sol/(medium|high)|Astra/xhigh|reasoning_effort|service_tier|AGENTS\.md'
+FOREIGN_ERR="$(mktemp)"
+FOREIGN_HITS="$(repo_files | grep -v '^scripts/validate\.sh$' | tr '\n' '\0' \
+  | xargs -0 grep -nIHE "$FOREIGN" -- 2>"$FOREIGN_ERR" || true)"
+if [[ -s "$FOREIGN_ERR" ]]; then
+  cat "$FOREIGN_ERR"
+  fail "the vocabulary scan reported the errors above, so it could not check every file"
+fi
+if [[ -n "$FOREIGN_HITS" ]]; then
+  printf '%s\n' "$FOREIGN_HITS"
+  fail "the files above carry names, configuration, model, or command vocabulary from another coding-agent environment"
+fi
+if [[ ! -s "$FOREIGN_ERR" && -z "$FOREIGN_HITS" ]]; then
   pass "no foreign environment vocabulary"
 fi
+rm -f "$FOREIGN_ERR"
 # A skill ported from another environment can arrive with that environment's
 # per-skill interface metadata. Claude Code does not read it; do not ship it.
-if git ls-files | grep -E '(^|/)openai\.yaml$'; then
+if repo_files | grep -E '(^|/)openai\.yaml$'; then
   fail "the files above are another coding-agent environment's skill metadata"
 else
   pass "no skill metadata from another coding-agent environment"
+fi
+
+echo "== third-party skills are linked, not vendored =="
+# Third-party skills and plugins install from their official Claude Code sources
+# as companions (INSTALL.md). A package that ships a license or notice file at any
+# depth is vendored third-party work. With glob magic, ** crosses directories, and
+# icase also catches names such as license.md or Notice.txt.
+VENDORED="$(repo_files ':(glob,icase)skills/**/LICENSE*' ':(glob,icase)skills/**/NOTICE*')"
+if [[ -n "$VENDORED" ]]; then
+  printf '%s\n' "$VENDORED"
+  fail "the files above vendor third-party work; link the official Claude Code source as a companion instead"
+else
+  pass "no skill package vendors third-party work"
 fi
 
 echo "== support-only pointer has one source =="
@@ -221,15 +268,15 @@ done
 [[ -e "$HOME1/references" ]] && fail "installer created a top-level references/ directory"
 grep -q '^<!-- coding-agent-playbook-claude-code:start -->$' "$HOME1/CLAUDE.md" || fail "marked section missing from installed CLAUDE.md"
 n=$(grep -c "^skills$(printf '\t')" "$HOME1/.coding-agent-playbook-claude-code-managed-files.tsv")
-m=$(git ls-files skills | wc -l)
+m=$(repo_files skills | wc -l)
 [[ "$n" == "$m" ]] && pass "manifest lists all $m skill files" || fail "manifest lists $n skill files, repository has $m"
 for name in $SKILLS; do
   [[ -f "$HOME1/skills/$name/SKILL.md" ]] || fail "skill package not installed: $name"
 done
-while IFS= read -r ref; do
-  rel="${ref#skills/}"
-  [[ -f "$HOME1/skills/$rel" ]] || fail "packaged skill file not installed: $rel"
-done < <(git ls-files 'skills/*/references/*')
+while IFS= read -r packaged; do
+  rel="${packaged#skills/}"
+  cmp -s "$packaged" "$HOME1/skills/$rel" || fail "packaged skill file not installed byte-identically: $rel"
+done < <(repo_files skills)
 pass "every discovered skill package and packaged file is installed"
 
 echo "== a second identical install is a no-op =="
@@ -284,6 +331,19 @@ if head -1 "$HOME3/CLAUDE.md" | grep -q '^# My own notes$' \
   pass "user content kept, pointer section appended, original backed up outside the managed trees"
 else
   fail "support-only install did not preserve or back up existing CLAUDE.md"; tail -10 "$TMP_HOME/install3.log"
+fi
+
+echo "== a user's own files in an adopted skill directory never fail an install =="
+# A standalone skill the user installed earlier under a playbook skill's name is
+# adopted. Files the package does not ship stay, and the installer does not judge them.
+HOME7="$TMP_HOME/adopted"
+mkdir -p "$HOME7/skills/senior-code-review"
+printf 'My notes point at `scripts/my-own-helper.py` and `references/mine.md`.\n' > "$HOME7/skills/senior-code-review/MY-NOTES.md"
+if CLAUDE_CONFIG_DIR="$(native_path "$HOME7")" bash install/install.sh --full > "$TMP_HOME/adopted.log" 2>&1 \
+    && [[ -f "$HOME7/skills/senior-code-review/MY-NOTES.md" ]]; then
+  pass "install adopts the directory, keeps the user's file, and does not judge its references"
+else
+  fail "install failed on, or removed, a user's own file in an adopted skill directory"; tail -10 "$TMP_HOME/adopted.log"
 fi
 
 echo "== formerly managed loose references are retired only when unchanged =="

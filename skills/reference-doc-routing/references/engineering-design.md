@@ -56,7 +56,7 @@ Prefer clear responsibilities and small interfaces. Wrappers, managers, factorie
 
 **Change amplification as a signal.** If a one-line requirement change would touch five files across three layers, the structure is misaligned with how the requirement actually varies. That does not always mean fix it now — but it should be named, and it should inform where the current change lands.
 
-**Tests are part of the maintenance surface.** Fixtures and mocks too. Retain tests for the intended final behavior and credible regression risks, including focused unit tests for lasting rules; update or remove tests that only describe an abandoned intermediate fix. Prefer extending existing coverage over a parallel suite, do not add a permanent test for every helper or step, and do not reshape sound production code solely to make a low-value test possible.
+**Tests are part of the maintenance surface.** Fixtures and mocks too. Retain only E2E behavioral tests — complete supported flows through real UI, API, or CLI entry points — for the intended final behavior, important rules, meaningful failures, boundary cases, and credible regression risks. Every unit test created along the way is temporary, whatever its purpose: once passing E2E coverage carries its still-required assertions, remove it and the support code only it used. Existing non-E2E suites migrate only within authorized scope, and required gates stay. Update or remove tests that only describe an abandoned intermediate fix, prefer extending existing E2E coverage over a parallel suite, and do not reshape sound production code solely to make a low-value test possible. Builds, lint, type checking, and static validation remain valid checks for what they establish.
 
 ## Material technical debt
 
@@ -82,7 +82,7 @@ Before calling a meaningful change done, ask:
 - Does it duplicate a component, hook, validator, or utility the project already had?
 - Did it keep a legacy path without a demonstrated dependency, or remove one while a consumer was still unresolved? Did it invent a support commitment for a hypothetical user, an old test account, a fixture, or an earlier implementation?
 - Did it replace a working part of the flow without evidence of a benefit that justifies the migration, verification, and maintenance cost?
-- Does every remaining test describe the intended final behavior or a realistic regression risk, rather than an abandoned approach or an implementation detail?
+- Does every test this change adds or keeps drive a complete flow end to end for the intended final behavior or a realistic regression risk, rather than an abandoned approach or an implementation detail, while existing required suites and gates stay in force? Are the unit tests created along the way gone, with their exclusive support code, now that passing E2E coverage carries their still-required assertions?
 - Would a small change in the requirement now ripple further than it should?
 - Is every material tradeoff recorded with scope, rationale, and follow-up condition?
 - Can it be tested, debugged, replaced, and removed without archaeology?

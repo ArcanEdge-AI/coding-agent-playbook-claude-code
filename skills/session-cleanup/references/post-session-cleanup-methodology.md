@@ -26,14 +26,14 @@ Development is iterative. The final codebase should keep the required implementa
 - 12. Run the project's validation pipeline
 - 13. Check documentation against reality
 - 14. Resolve deferred-work markers
-- 15. Check repository hygiene
+- 15. Check repository hygiene and runtime resources
 - 16. Do a final next-developer review
 - 17. Final scope check
 - The completion report
 
 ## Governing principles
 
-- Do not over-engineer it. Make it elegant, not bloated.
+- Add complexity only when a demonstrated requirement justifies it, and remove the unnecessary layers, state, configuration, and duplication the work delta introduced.
 - Prefer the smallest complete solution that reliably solves the demonstrated problem, and the smallest maintainable implementation surface — not merely the fewest lines.
 - Keep the complexity that correctness, security, data integrity, accessibility, maintainability, or a demonstrated compatibility requirement needs.
 - Prefer the project's existing patterns, components, and conventions over new abstractions.
@@ -168,7 +168,7 @@ When the work delta introduced compatibility behavior, require evidence of a rea
 
 ## 4. Simplify and minimize the implementation surface
 
-Review the final implementation with fresh eyes. For each file, abstraction, wrapper, helper, state variable, configuration option, dependency, feature flag, compatibility path, and code path the work delta introduced, ask whether the demonstrated requirement needs it.
+Review the final implementation against the demonstrated requirement, not against the sequence of earlier attempts. For each file, abstraction, wrapper, helper, state variable, configuration option, dependency, feature flag, compatibility path, and code path the work delta introduced, ask whether the demonstrated requirement needs it.
 
 - Is there a simpler way to express this?
 - Did implementation churn introduce unnecessary layers?
@@ -195,7 +195,7 @@ Remove work-delta code that exists only because:
 - it provides configuration for behavior that does not actually vary
 - it adds indirection without reducing meaningful complexity
 
-Simplify when the improvement is obvious, low-risk, verifiable, and within the scope of the completed work. This is not code golf: keep useful boundaries and necessary complexity, and do not chase architectural purity.
+Simplify when the improvement is obvious, low-risk, verifiable, and within the scope of the completed work. Do not minimize line count at the expense of useful boundaries or necessary complexity, and do not redesign working code merely to match a preferred architecture.
 
 ## 5. Check code quality
 
@@ -214,7 +214,7 @@ Simplify when the improvement is obvious, low-risk, verifiable, and within the s
 
 **Readability**
 
-- Control flow is understandable, and clever code has not replaced clear code.
+- Control flow and intent are explicit, not hidden in compact expressions or indirection.
 - Complex behavior is explained where the explanation is genuinely useful.
 - Comments explain intent or non-obvious constraints rather than restating code.
 - No comment justifies speculative compatibility with hypothetical users or future requirements.
@@ -304,7 +304,7 @@ The final interface should represent the actual system state and the canonical b
 
 Review the tests associated with the work:
 
-- Are the important new behaviors covered?
+- Do passing E2E tests cover the important new behaviors, meaningful failures, and boundary cases?
 - Do the tests verify behavior rather than implementation trivia?
 - Was any existing test weakened just to make it pass, or any assertion removed without justification?
 - Are skipped tests still present?
@@ -313,12 +313,14 @@ Review the tests associated with the work:
 - Do old tests still describe the current intended behavior?
 - Do any tests preserve branch-only transitional behavior that never shipped?
 - Is every compatibility test backed by an actual supported compatibility requirement?
+- Was every unit test created during the work treated as temporary, whatever its purpose or label, and removed once passing E2E tests carry its still-required assertions?
+- Were the fixtures, mocks, helpers, and dependencies that only those temporary tests used removed, without affecting E2E or production code?
 
-Add or improve tests where this work introduced a meaningful gap. Remove or update work-delta tests that only preserve abandoned branch behavior. Do not write excessive tests for trivial implementation details.
+Add or improve E2E tests where this work introduced a meaningful gap. Remove or update work-delta tests that only preserve abandoned branch behavior. Do not write excessive tests for trivial implementation details.
 
-The tests that remain should protect the intended final solution, including focused unit tests for lasting business rules. Tests may have guided development before the feature was whole, but a partial fix does not earn a permanent test of its own: as the approach changed, the tests, fixtures, and mocks that only describe an abandoned implementation are updated, consolidated, or removed. Preserve every assertion that still-required behavior depends on, and investigate a failing test before classifying it as obsolete.
+Retain only E2E behavioral tests: they exercise the intended final solution through real UI, API, or CLI entry points, with the relevant dependencies and an observable outcome. Every unit test created is temporary, whatever its purpose or whoever wrote it; none remains in a completed change. First carry its still-required behavioral assertions, meaningful failures and boundary cases included, into E2E coverage — a happy path alone is not enough. Once that E2E coverage passes, remove every created unit test and the fixtures, mocks, helpers, and dependencies only they used. If coverage or cleanup is incomplete, report the unfinished work; do not treat unit tests as the final solution or declare the work complete. Migrate pre-existing non-E2E suites only within authorized scope, and preserve required repository gates.
 
-Prefer extending existing coverage. Add a lasting test for an identified important behavior or a realistic regression risk that existing checks do not establish. Do not multiply layers that prove the same thing without a distinct risk, and do not keep a diagnostic probe merely because it was useful during the investigation. Mocked behavior alone does not prove the completed flow works.
+Prefer extending existing E2E coverage for an identified important behavior or realistic regression risk that existing checks do not establish. As the approach changes, update, consolidate, or remove E2E tests and fixtures that only describe abandoned fixes. Preserve required assertions, and investigate a failure before removing a test: deleting a failing test is not a fix. Do not keep a diagnostic probe merely because it was useful during the investigation. Direct helper calls and mocked internal flows do not prove E2E behavior.
 
 ## 12. Run the project's validation pipeline
 
@@ -327,11 +329,11 @@ Find the repository's own validation commands — its `CLAUDE.md`, README, packa
 - formatting
 - linting
 - type checking
-- unit tests
-- integration tests
-- relevant end-to-end tests
+- relevant E2E tests of complete supported flows
 - build
 - project-specific verification scripts
+
+Build and static checks remain valid evidence for what they check; they do not replace required E2E evidence of behavior. Keep running a still-mandatory existing non-E2E gate until its migration is authorized and complete. Do not silently disable it, and do not claim a migration is finished when it is not.
 
 Do not invent replacement commands when the repository already defines them. If a step cannot run, say why. Never silently ignore a failure.
 
@@ -374,7 +376,7 @@ For each marker the work delta introduced or affected:
 
 Do not use a TODO as a substitute for completing required behavior, and do not leave speculative compatibility TODOs for hypothetical future consumers.
 
-## 15. Check repository hygiene
+## 15. Check repository hygiene and runtime resources
 
 Before finishing, verify that:
 
@@ -388,6 +390,18 @@ Before finishing, verify that:
 - file names and directory placement follow repository conventions
 
 Never use destructive cleanup commands blindly; inspect before deleting. Temporary branches and task-created worktrees are not removed here: list each with its state, and route branch deletion to the `feature-branch-lifecycle` skill and worktree removal to the `worktree-lifecycle` skill.
+
+### Runtime resource disposition
+
+Before completion, reconcile the identifiers, ownership, and recovery attempts of the in-scope runtime resources, including existing project resources recovered from earlier sessions. The runtime-resource rules in the global instructions apply. This pass does not authorize a sweep of unrelated processes, containers, virtualized environments, images, or caches.
+
+- **Recover before you replace.** While the task still needs an existing project environment, prefer its supported start, resume, or scoped restart over a replacement. A stopped or unhealthy environment from an earlier session is a recovery candidate — neither automatically abandoned nor untouchable. Verify readiness after recovery, and report an exhausted recovery allowance instead of launching another stack.
+- **Recovery authority is not cleanup authority.** Recovering an existing environment does not make it task-created or disposable. Leave persistent project environments in the requested handoff state; do not stop or delete them merely because the task is ending. A shared-backend or machine-wide restart must pass the global impact and authority gate.
+- **Close only what the task owns.** Close task-owned temporary browser pages and contexts through supported controls. Close a browser process only when the task owns the whole temporary instance and no other work depends on it, and never terminate browsers by executable name alone.
+- **Verify before removing a container.** Stop or remove a temporary container only after verifying its exact identity, task ownership, cleanup authority, active consumers, and any output or data that must be kept. Release task-owned connections to shared services without stopping those services.
+- **Keep reusable state.** Preserve persistent volumes, user data, valid reusable images, and build caches. Remove an explicitly disposable image only when its exact removal is authorized and no required consumer or retained artifact depends on it. Broad container, image, or volume pruning is not session cleanup.
+- **Release on every path.** Confirm that both success and failure paths release task-owned temporary resources. Do not leave overlapping browser suites, image builds, or heavy validation jobs running after their output is no longer needed. Stop only task-owned jobs, through supported controls, and never cancel another session's work.
+- **Verify the teardown.** Confirm that teardown actually completed. If cleanup is blocked, or a resource must remain for an authorized handoff, report its exact identifier, owner, current state, reason, and next action. Reconcile any task-created replacement with the resource it superseded and that resource's retained data, and retire only exact, authorized disposable targets, so replacements do not accumulate.
 
 ## 16. Do a final next-developer review
 

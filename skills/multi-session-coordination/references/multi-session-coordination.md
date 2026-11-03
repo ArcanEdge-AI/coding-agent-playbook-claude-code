@@ -200,13 +200,12 @@ Never tell sessions merely to "coordinate." Name the ownership, dependency, cont
 
 ## Resolving conflicts
 
-In order:
+Keep instruction authority separate from evidence of current behavior:
 
-1. Current `CLAUDE.md` instructions and authoritative project documentation
-2. Current code, tests, schemas, configuration, and runtime behavior
-3. Explicit user decisions
-4. Established shared contracts already in use
-5. The smallest safe change that preserves compatibility
+1. Follow the host's instruction hierarchy, then the relevant scope and specificity within the same authority level — the applicable `CLAUDE.md` instructions and authoritative project documentation included. Preserve explicit user decisions within that hierarchy.
+2. Establish current behavior from code, tests, schemas, configuration, and runtime observations. These facts show what is true now; they do not override an authorized target requirement.
+3. Check established shared contracts already in use and their supported consumers. Report a conflict with the requested change instead of silently preserving or discarding the contract.
+4. Choose the smallest safe change that satisfies the governing requirements and the compatibility they require.
 
 Ask the user when both approaches are plausible and the choice materially affects architecture, behavior, data, safety, release timing, or user-visible output.
 

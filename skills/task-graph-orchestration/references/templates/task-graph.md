@@ -129,13 +129,13 @@ Write these down before consolidating — this is where completeness silently di
 
 Write `None` and delete the row if nothing here needs approval. Approval of the plan or an earlier node does not authorize a broader or different irreversible action, and the permission mode is never changed to avoid a prompt.
 
-## Fan-In and Final Verification
+## Consolidation and Final Verification
 
 - **Consolidation nodes**: [IDs and expected inputs]
 - **Preserved evidence**: [paths, node IDs, counts, severity, confidence]
 - **Integrated validation**: [commands, runtime checks, inspection]
 - **Skill deliverables produced**: [Yes / No / N/A]
-- **Independent verification**: [`senior-reviewer` or `test-triager` node, or why it is not needed]
+- **Independent verification**: [`senior-reviewer` or `test-triager` node and its evidence, or why it is not required. Your own self-review, including one through a role's perspective, does not satisfy an independent-review gate]
 - **Final diff reviewed**: [Yes / No]
 - **All required nodes and gates complete**: [Yes / No]
 - **Every task-created auxiliary has a final disposition**: [Yes / No / N/A]

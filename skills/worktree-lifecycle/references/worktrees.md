@@ -142,7 +142,7 @@ For every task-created auxiliary:
 9. Verify both that the path is gone and that it no longer appears in `git worktree list --porcelain`.
 10. Mark the permit `removed`, with evidence.
 
-**Never** use force removal, `reset`, `clean`, `stash`, broad recursive deletion, or age, inactivity, or clean status alone as authority to delete.
+**Never** use force removal, `reset`, `clean`, `stash`, or broad recursive deletion as a cleanup shortcut. Age, inactivity, or a clean status alone does not establish permission or safety to remove a worktree.
 
 If any check is unavailable or ambiguous, mark it `preserved` and report the exact missing evidence or ownership blocker. Preserving something you cannot verify is the correct outcome, not a failure.
 

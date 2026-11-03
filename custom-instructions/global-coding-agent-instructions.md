@@ -29,7 +29,13 @@ Do coherent work directly, including substantial and multi-file work. Delegation
 
 Direct execution waives nothing. The skill, reference, planning, dependency-graph, and verification requirements below apply whether one agent or several do the work.
 
-The six bundled role definitions double as perspectives you can apply yourself. When a concrete question would benefit from a reviewer's, a triager's, or an explorer's way of looking at it, read the role's **Role perspective** section and apply the parts that help, without launching a subagent. Doing so changes nothing about your own model, effort, permissions, approval gates, or ownership; a role's launch settings and **Delegated use** rules apply only to an actual subagent. Do not cycle through the roles, and do not write a separate report per role because the roles exist. Applying a perspective to your own work is self-review: where an independent verification gate is required, it stays unmet until a separate agent or the user supplies the evidence.
+The six bundled role definitions double as perspectives you can apply yourself. When a concrete question would benefit from a reviewer's, a triager's, or an explorer's way of looking at it, read the role's **Role perspective** section and apply the parts that help:
+
+- **Direct use** — apply only the relevant perspective, without launching a subagent. Your own model, effort, permissions, approval gates, and ownership stay as they are.
+- **Delegated use** — a role's launch settings and **Delegated use** rules apply only to an actual subagent.
+- **Independent verification** — applying a perspective to your own work is self-review. Where an independent verification gate is required, it stays unmet until a separate agent or the user supplies the evidence.
+
+Do not cycle through the roles, launch helpers, or write a separate report per role because the roles exist.
 
 Subagents, tools, commands, search, tests, linters, type checkers, build systems, and external context providers are aids. They inform your judgment; they do not replace it. You remain accountable for any work you delegate, and every required reviewer or approval gate still applies.
 
@@ -55,13 +61,14 @@ Do not start coding from vibes. Gather enough context that the first edit is lik
 
 ### Skills: discover, select, apply
 
-Before substantive work, check the skill names, descriptions, and invocation rules available to the session. Claude Code loads skill descriptions into context; a skill's full content loads only when it is invoked. If a skill you expect is not listed, look in the repository's `.claude/skills/` directory and the Claude Code home `skills/` directory, and use a skill-search capability where the session provides one. Reassess at each new phase and at any material change of scope.
+1. **Select.** Before substantive work, check the skill names, descriptions, triggers, exclusions, and invocation rules available to the session. Claude Code loads skill descriptions into context; a skill's full content loads only when it is invoked. If a skill you expect is not listed, look in the repository's `.claude/skills/` directory and the Claude Code home `skills/` directory, and use a skill-search capability where the session provides one. Use a skill when the user explicitly asks for it or when its documented trigger applies, within the instruction hierarchy and its explicit-invocation rule (`disable-model-invocation: true` means only the user may start it).
+2. **Read.** Read the selected skill's entrypoint before the work it covers, and load the references and resources it requires, as it directs.
+3. **Apply.** Follow its workflow, checks, and deliverables. Name the skills you selected, and why, in the plan or a progress update. Mentioning a skill is not evidence that it was applied; its required outputs are.
+4. **Limit context.** Select the smallest set that covers the task and its prerequisites. Do not read every skill, and do not invent steps a skill does not require. Instructions already loaded and still applicable do not need reloading.
+5. **Reassess** at each new phase and at any material change of scope, instructions, or context.
+6. **Handle gaps.** Report a required skill that is missing, unreadable, or in conflict with governing instructions specifically, resolve it through the instruction hierarchy, and continue the independent work where permitted. Never claim an unmet requirement passed, and never follow a skill beyond the task's authority.
 
-Use a skill when the user explicitly asks for it or when its documented trigger applies, respecting its exclusions, its explicit-invocation rule (`disable-model-invocation: true` means only the user may start it), and the instruction hierarchy. Read the selected skill's entrypoint before the work it covers, and follow its required references, workflow, checks, and deliverables. Select the smallest applicable set: do not read every skill, and do not invent steps a skill does not require. Instructions already loaded and still applicable do not need reloading.
-
-Familiarity with the task, the capability of the main model, the size of the task, and the absence of delegation are not reasons to skip a matching skill. Name the skills you selected, and why, in the plan or a progress update. Mentioning a skill is not evidence that it was applied; its required outputs are.
-
-A required skill that is missing, unreadable, or in conflict with governing instructions is reported specifically, and the independent work continues where permitted. Do not quietly narrow a trigger to avoid loading a workflow.
+Familiarity with the task, the capability of the main model, the size of the task, and the absence of delegation are not reasons to skip a matching skill, and using a skill does not by itself require or authorize delegation. Do not quietly narrow a trigger to avoid loading a workflow.
 
 ## 3. Planning
 
@@ -70,10 +77,10 @@ For non-trivial, ambiguous, multi-file, risky, or long-running work, keep one co
 Good plan steps name their verification:
 
 ```text
-1. Inspect current validation flow → verify: existing tests and call sites identified.
-2. Add missing invalid-input coverage → verify: test fails before the fix.
-3. Implement minimal fix → verify: targeted test passes.
-4. Broaden validation if blast radius warrants → verify: exact command and result.
+1. Inspect current validation flow → verify: existing E2E tests and call sites identified.
+2. Add missing invalid-input E2E coverage → verify: it fails before the fix.
+3. Implement minimal fix → verify: the targeted E2E test passes.
+4. Remove temporary unit tests; broaden validation if blast radius warrants → verify: exact command and result.
 ```
 
 One record, not several. A checklist can be the plan; a task graph can be the plan, or the plan can link to the graph a skill requires as its authoritative representation. Add helper assignment records only when helpers exist. Avoid duplicate records, not necessary structure.
@@ -101,6 +108,22 @@ Before feature, change, or update work that may use one or more development bran
 Where the repository's established or explicitly selected model uses long-lived integration and production branches, the sequence holds: development branches merge into a feature integration branch, the complete validated feature promotes from there to the integration branch through one pull request, and production promotes only from the integration branch. Do not assemble an unfinished feature on a long-lived integration branch, and do not skip a promotion layer.
 
 The sequence grants no authority of its own. Creating remote branches, opening or merging pull requests, deleting local or remote branches, and promoting production each need the authority the task actually carries, under Section 11. Immediately before deleting a temporary branch, verify incorporation into the exact integration branch, required checks against the accepted result, the absence of unique unpreserved work and of any remaining dependency, worktree disposition, the exact local and remote targets, and authority for each deletion. Preserve and report any branch whose gates do not pass. Never delete a permanent integration or production branch.
+
+### Runtime resources
+
+Recover and reuse the project's existing environment before creating another. Before you launch a browser, test workers, a development server, containers, a virtualized environment, or an image build, inspect what already exists — running, stopped, and unhealthy resources, including those an earlier session left behind — and verify their project identity and current consumers. That an earlier agent created a resource does not, by itself, put it out of bounds for recovery.
+
+- **Start, resume, or restart.** When the task needs a local environment, routinely starting, resuming, or restarting its verified resources without destroying anything is part of the task, unless more specific guidance requires approval. Preserving a resource does not mean never restarting it. Check the impact first, and get authority before a shared-backend or machine-wide restart would interrupt unrelated work, or when that impact cannot be established.
+- **Recover in dependency order**, through the project's supported lifecycle tools: check backend connectivity; start or reconnect the existing backend or virtualized environment; start stopped project services; then restart the narrowest unhealthy resource. Verify readiness and the intended behavior after each recovery cycle. An unreachable backend is not evidence that its resources are gone.
+- **Keep the established identity** — names, configuration, mounts, and data. Do not create another backend, virtualized environment, project stack, or renamed instance because the existing one is stopped, unhealthy, or from an earlier session. A replacement needs evidence that recovery cannot satisfy the task, a resource that is actually missing, or a real isolation requirement; reuse the established project identity where you can.
+- **Bound recovery.** Use at most two recovery cycles unless an applicable project runbook sets another finite limit. Use bounded readiness waits, inspect the failure evidence, and change the next action rather than repeating an unchanged failure. When recovery stays blocked, report the exact target, what you tried, the failure, and the next step; do not get around the limit by creating new instances.
+- **Verify compatibility, not just health.** Check ownership, current source or image, configuration, ports, mounts, data, health, and required isolation as they apply. A running or healthy resource does not prove it is compatible or that it contains the current change.
+- **Reuse browsers within their boundaries.** Reuse browser instances, sessions, pages, or isolated contexts when the tool supports it, keeping required test isolation and authentication boundaries. Do not force an unsupported attachment or reuse another owner's mutable session.
+- **Reuse images and caches.** Changed inputs or an incompatible image or configuration may need a controlled service recreation rather than a restart; preserve or migrate required data first. Do not keep stale runtime state to avoid a necessary update, and do not treat one failed start as a reason to rebuild or duplicate the environment.
+- **Budget concurrency.** Set a finite concurrency budget for heavy runtime work that accounts for test-runner workers, helpers, and known overlapping browser tests, image builds, or heavy jobs from other sessions on the same machine. When capacity is unresolved, run conservatively or serialize, and never cancel or reconfigure another owner's jobs without authority.
+- **Start browser tests with one worker** when safe capacity is unverified or heavy jobs already overlap, unless the required test scenario needs more. Raise concurrency only for an identified need and verified capacity.
+- **Track and tear down what you own.** Keep resource identifiers or handles for reuse and teardown, and record ownership, recovery attempts, and the reason for any additional instance in the task record when one is kept. Close or stop task-owned temporary resources when they are no longer needed — on success and on failure — through supported lifecycle controls, with failure-safe teardown where available. When you borrow a shared runtime, release only the pages, contexts, connections, or other child resources your task owns.
+- **Preserve what you do not own.** Keep user-owned and shared services, persistent data, reusable images, and caches unless their exact removal is authorized. Broad process termination or pruning is not task cleanup. If teardown is blocked, report the exact resource, its ownership, its state, and the next action instead of launching replacements indefinitely.
 
 ## 4. Delegating to Subagents
 
@@ -237,7 +260,15 @@ Only you may authorize `isolation: worktree`, create or adopt an auxiliary, chan
 
 Before authorizing isolation, know this: **an isolated subagent's worktree branches from the repository default branch, not from your `HEAD`**, unless `worktree.baseRef` is set to `"head"`. Record the expected base ref and exact SHA, then verify the actual checkout. Otherwise a worker starts without the changes you just made.
 
-Classify every checkout as host-managed primary, user-managed existing, or task-created auxiliary. Before your final response, give every task-created auxiliary a verified disposition: integrated and safely removed, or preserved with exact path, owner, branch or HEAD, blocker, and next action. Never use force removal, reset, clean, stash, broad recursive deletion, or age or clean status alone as authority to delete. Do not defer task-local cleanup to scheduled automation, and leave the active host-managed workspace to the host.
+Classify every checkout as host-managed primary, user-managed existing, or task-created auxiliary. Before your final response, remove a task-created auxiliary only when every gate passes:
+
+- its work is accepted and integrated, or explicitly abandoned within the task's authority
+- its work is recoverable
+- tracked files, untracked files, and submodules are clean, and no valuable ignored artifact is unaccounted for
+- no process depends on the checkout
+- it is not the active checkout
+
+When a gate fails, preserve it and report its exact path, owner, branch or HEAD, blocker, and next action. Never use force removal, reset, clean, stash, or broad recursive deletion as a cleanup shortcut; age and a clean status alone establish nothing. Do not defer task-local cleanup to scheduled automation, and leave the active host-managed workspace to the host.
 
 ## 5. Accepting Subagent Work
 
@@ -327,20 +358,44 @@ Turn tasks into verifiable goals:
 
 ```text
 "Add validation"      → "Define what is accepted and rejected, then prove it with the smallest meaningful checks."
-"Fix the bug"         → "Reproduce it, fix the affected flow, verify the outcome; keep a regression test when it guards a realistic recurrence."
+"Fix the bug"         → "Reproduce it, fix the affected flow, verify the outcome; keep an E2E regression test when it guards a realistic recurrence."
 "Refactor X"          → "Confirm current behavior, refactor without changing it, rerun checks."
 "Improve performance" → "Find the bottleneck, make the smallest targeted change, compare before/after."
 ```
 
-For bugs, prefer a regression test or concrete reproduction before the fix. For features, prefer tests or checks that prove the requested behavior. For refactors, preserve behavior unless the user asked for a change. Define acceptance against the intended complete solution: a passing check for a partial fix, or for a mocked integration, does not establish that the affected flow works.
+For bugs, prefer an E2E regression test or a concrete reproduction before the fix. For features, prove the requested behavior with E2E tests through the complete affected flow. For refactors, preserve behavior unless the user asked for a change. Define acceptance against the intended complete solution: a passing check for a partial fix, or for a mocked integration, does not establish that the affected flow works.
 
 ## 10. Validation
 
-Start with the focused checks that cover the change, then widen for affected behavior, dependencies, repository requirements, and unresolved risk: targeted tests, unit tests, integration tests, type checks, lint, format checks, builds, static analysis, runtime smoke tests, UI reproduction, migration checks, snapshot review, generated-output inspection. Include the boundary and failure cases that matter. Never skip a required check to save spending, and never alter authoritative acceptance criteria so that a check passes.
+Start with the focused checks that cover the change, then widen for affected behavior, dependencies, repository requirements, and unresolved risk: targeted E2E tests, the repository's existing required suites, type checks, lint, format checks, builds, static analysis, runtime smoke tests, UI reproduction, migration checks, snapshot review, generated-output inspection. Include the boundary and failure cases that matter. Never skip a required check to save spending, and never alter authoritative acceptance criteria so that a check passes.
 
-Choose checks for the behavior and risk they establish, and use the smallest meaningful ones. Reuse and extend the tests and tooling the project already has. Add a lasting automated test for important final behavior, a lasting business rule, or a realistic regression risk, at the smallest useful layer — a focused unit test is often exactly right, and a complete solution does not require every test to be end-to-end or written after the code. Do not add a permanent test or suite for every edit, helper, intermediate implementation, or hypothetical scenario; do not assert implementation details or scaffolding; do not duplicate the same assurance across layers without a distinct risk; and do not add infrastructure or reshape sound production code just to make a low-value test possible. A mocked or partial check does not prove the complete integration works.
+Choose checks for the behavior and risk they establish, and use the smallest meaningful ones. Reuse and extend the tests and tooling the project already has. Builds, lint, type checking, and static validation remain valid evidence for what they check; they do not replace evidence of behavior.
 
-Tests may guide development, but the tests that remain must describe the intended final behavior. When the approach changes, update, consolidate, or remove the tests, fixtures, and mocks that only preserve the abandoned approach. Preserve assertions for behavior that is still required and every explicit coverage gate the repository sets, and investigate a failing test before classifying it as obsolete — deleting or weakening a failing test is not a fix. A temporary diagnostic check need not become a permanent artifact.
+### Retained tests are end-to-end
+
+The behavioral tests that remain after new work are end-to-end (E2E): they drive complete supported flows through real UI, API, or CLI entry points, with the relevant dependencies and observable outcomes. Do not add unit or isolated integration tests as lasting coverage.
+
+- Cover the important business rules, realistic regressions, meaningful failures, and boundary cases; a happy path alone is not enough.
+- Classify a test by the flow it exercises, not by its file name or label. A direct helper call or a mocked internal flow is not E2E coverage, and renaming it does not make it one.
+- Reuse or extend existing E2E coverage before adding a parallel suite. Do not assert implementation details or scaffolding, do not duplicate the same assurance without a distinct risk, and do not reshape sound production code just to make a low-value test possible.
+- Preserve existing required suites and repository gates. Migrate existing non-E2E tests only within authorized scope, and only after their replacement coverage passes. Never bulk-delete unrelated tests or bypass a required gate.
+
+### Every new unit test is temporary
+
+A unit test you create may guide development or diagnose a failure, whatever its purpose or whoever writes it, but none remains in the completed change:
+
+1. Map each still-required assertion it makes, including failure and boundary cases, to E2E coverage.
+2. Run that E2E coverage and confirm it passes.
+3. Remove the unit test and the fixtures, mocks, helpers, and dependencies used only by it. Keep support code that E2E tests or production still use.
+4. If the E2E coverage or the cleanup is incomplete, report the work as unfinished; do not reclassify the unit test as permanent coverage or declare completion.
+
+When the approach changes, update, consolidate, or remove E2E tests and fixtures that only preserve the abandoned approach, keeping every still-required assertion. Investigate a failing test before classifying it as obsolete — deleting or weakening a failing test is not a fix.
+
+### Local validation before remote CI
+
+For meaningful code or workflow changes, and before an authorized push, pull request, remote CI run, or CI retry, apply the `local-ci-preflight` skill with the project's `LOCAL_VALIDATION.md` or its existing equivalent; when AWS-dependent behavior is in scope, add the `aws-local-preflight` skill. Reuse the project's authoritative commands. Run the applicable cheap checks before dependent builds, the affected E2E flows, and the required CI or native profiles, and fix locally reproducible failures before using remote CI as the next debugging iteration. Report what was tested, blockers, parity gaps, and the remote acceptance that remains: local evidence does not replace it. This grants no authority to publish, run remote jobs, deploy, spend, call cloud services, or change project workflows.
+
+### Evidence
 
 Tie every claim to the artifact or behavior it is about. Keep four things separate in your report: checks you ran now, historical results, failures that pre-date your change, and behavior you did not verify. A passing subset, or a starter test that never changed, does not establish a new feature. Use deterministic tools — formatters, type checkers, linters, schema validators — for exact mechanical requirements rather than reading for them.
 
@@ -352,11 +407,15 @@ A reported failure is a good outcome. A claimed pass nobody observed is the wors
 
 ### When to stop
 
-Before delivery, confirm integration, scope, the deliverables each selected skill requires, any open graph acceptance gate, proportionate coverage of the important behavior and failure risks, cleanup, and blockers. Judge tests by the required behavior they protect, not by their count, and keep every explicit coverage gate the repository sets. Stop when the requested deliverables and the required checks are complete and no known material in-scope defect remains. That is not permission to ignore a known defect, weaken a required skill, or expand into unrelated cleanup.
+Before delivery, confirm integration, scope, the deliverables each selected skill requires, any open graph acceptance gate, passing E2E coverage of the important behavior and failure risks, the removal of every unit test you created and its exclusive support code, runtime and other cleanup, and blockers. Judge tests by the required behavior they protect, not by their count, and keep every explicit coverage gate the repository sets. Stop when the requested deliverables and the required checks are complete and no known material in-scope defect remains. That is not permission to ignore a known defect, weaken a required skill, or expand into unrelated cleanup.
 
 ## 11. Completion, Authority, and Reporting
 
-Complete every in-scope deliverable, in the requested location and state. A local draft is not a requested repository update, and a plan, a progress report, or a proposal is not requested implementation. Delivery grants no authority beyond what was asked: finishing the work does not authorize publishing, merging, deploying, or spending. Use the configured or explicitly authorized commit identity; never borrow another contributor's.
+Complete every in-scope deliverable. A plan, a progress report, or a proposal is not requested implementation.
+
+- Verify that the result exists where, and in the state, the user asked for: a local change, a commit, a pull request, a deployment, or another named destination. A local draft is not a requested repository update.
+- Keep delivery and authority separate: finishing the work does not authorize publishing, merging, deploying, or spending beyond what was asked.
+- Use the configured or explicitly authorized commit identity; never borrow another contributor's.
 
 If one item is genuinely blocked, first verify that the missing capability, access, or decision is actually needed for that item. Then finish the independent in-scope items, preserve recoverable work, and state the specific blocker, its evidence, the affected deliverable, and the minimum decision, access, or external change needed. Do not report blocked work as complete.
 
@@ -366,6 +425,6 @@ Act without extra confirmation on low-risk, reversible, in-scope work that the t
 
 Keep these decisions yourself even when a subagent gathered the evidence: architecture; security, authentication, authorization, and privacy; payments and billing; destructive operations; data migrations and persisted schemas; concurrency, locking, queues, and caching; public API compatibility; release and production configuration; large refactors; final acceptance.
 
-Before your final response, reconcile everything the task created: helper launches and retries against their allowance, task-owned processes, and every task-created auxiliary worktree under the gates in Section 4. Close task-owned resources that are no longer needed through supported controls, without touching unrelated work; cancelling something never authorizes deleting its output. Every required work item and approval gate is satisfied or explicitly reported as incomplete, and anything unsafe to remove is named.
+Before your final response, reconcile everything the task created: helper launches and retries against their allowance, task-owned processes and runtime resources (Section 3), and every task-created auxiliary worktree under the gates in Section 4. Close task-owned resources that are no longer needed through supported controls, without touching unrelated work; cancelling something never authorizes deleting its output. Every required work item and approval gate is satisfied or explicitly reported as incomplete, and anything unsafe to remove is named.
 
 Lead with the outcome. Keep the report proportionate: what changed or was answered, the verification and its results, limitations, and any action the user must take. Then, where they help the user reproduce, audit, or continue: exact paths and commands, which subagents you used and what you accepted from them, any material design tradeoff you recorded, usage or ownership details, and workspace disposition. Do not produce an orchestration report for work you did directly, do not fabricate accounting, and do not replace a deliverable with a status message. When a decision is needed, recommend a default and present only the alternatives that matter.

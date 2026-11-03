@@ -2,7 +2,7 @@ The primary global coding-agent behavior may already be configured in this CLAUD
 
 Supporting reference documents ship inside the skill that owns them, under the Claude Code home skills directory, so an installed skill never depends on a loose top-level directory:
 
-- `skills/reference-doc-routing/references/README.md` — catalog of every packaged reference and template, by owning skill
+- `skills/reference-doc-routing/references/README.md` — catalog of the workflow skills' packaged references and templates, by owning skill
 - `skills/reference-doc-routing/references/engineering-design.md` — decision questions for non-trivial design choices, when an abstraction has earned its place, and how to record material technical debt
 - `skills/reference-doc-routing/references/reference-doc-routing.md` — choosing documents, judging their authority, and passing them on
 - `skills/reference-doc-routing/references/templates/` — starter files for a repository CLAUDE.md and for architecture, testing, access-control, design-system, release, API-contract, and data-model docs
@@ -15,10 +15,16 @@ Supporting reference documents ship inside the skill that owns them, under the C
 - `skills/multi-session-coordination/references/multi-session-coordination.md` — discovering, coordinating, sequencing, and integrating independent Claude Code sessions
 - `skills/multi-session-coordination/references/templates/active-work-record.md` — the active-work-record template
 - `skills/handoff/references/context-contract.md` — what a handoff package carries into a fresh session: evidence labels, the material-context inventory, repository rules, a seed-prompt skeleton, and the completeness check
-- `skills/session-cleanup/references/post-session-cleanup-methodology.md` — the end-of-work cleanup and integrity procedure: the baseline and full work delta, the seventeen checks, and the completion report
+- `skills/session-cleanup/references/post-session-cleanup-methodology.md` — the end-of-work cleanup and integrity procedure: the baseline and full work delta, the seventeen checks, runtime-resource disposition, and the completion report
+- `skills/local-ci-preflight/assets/LOCAL_VALIDATION.template.md` — the project local validation contract, shipped as `NOT_CONFIGURED` until adapted to inspected project commands
+- `skills/local-ci-preflight/assets/claude-md-local-validation.md` — a project `CLAUDE.md` snippet that routes local validation before remote CI, for setups without these global instructions
+- `skills/aws-local-preflight/references/moto-boundaries.md` — Moto coverage boundaries and the gaps that need real AWS acceptance
+- `skills/aws-local-preflight/assets/LOCAL_VALIDATION.aws.template.md` — the AWS extension of the local validation contract: Moto coverage mapping, endpoint isolation, and remote-required gaps
 
 Reusable Claude Code skills live under the Claude Code home skills directory:
 
+- `skills/local-ci-preflight/SKILL.md`
+- `skills/aws-local-preflight/SKILL.md`
 - `skills/subagent-orchestration/SKILL.md`
 - `skills/task-graph-orchestration/SKILL.md`
 - `skills/feature-branch-lifecycle/SKILL.md`
@@ -30,6 +36,8 @@ Reusable Claude Code skills live under the Claude Code home skills directory:
 - `skills/senior-code-review/SKILL.md`
 - `skills/session-cleanup/SKILL.md`
 
+The same directory holds domain skills that load on their own triggers: repository review and technical-debt audit, platform documentation, and the production-readiness collection. Companion plugins — Intuitive Software Design, Impeccable, Taste, and Humanizer — are not part of this install; each comes from its official Claude distribution, as the playbook's `INSTALL.md` describes.
+
 Custom Claude Code subagents live under the Claude Code home agents directory:
 
 - `agents/local-orchestrator.md`
@@ -40,6 +48,10 @@ Custom Claude Code subagents live under the Claude Code home agents directory:
 - `agents/isolated-worker.md`
 
 Reference documents are supporting context, not automatic truth. The root session does repository work directly by default, including substantial multi-file work, applying the skills whose triggers match, and keeps task framing, integration, validation, acceptance, and the final response. It understands the whole affected flow before choosing a fix, improves the existing implementation by default, replaces a substantial part of a flow only on evidence of a significant benefit that justifies the migration, verification, and maintenance cost, and treats unnecessary abstractions, invented compatibility, and redundant tests as maintainability defects. Direct execution waives none of the skill, reference, graph-planning, or verification requirements.
+
+Retain only E2E behavioral tests of complete supported UI, API, or CLI flows. Every unit test created is temporary, whatever its purpose; none remains in a completed change. Unit tests may guide development, but remove them and the support code only they use once passing E2E coverage carries their still-required assertions. Preserve required assertions and repository gates, and migrate existing non-E2E suites only within authorized scope. Build, lint, type checking, and static validation remain valid evidence for what they check.
+
+Recover and reuse the established runtime environment before creating another: recover in dependency order through supported lifecycle commands, with at most two recovery cycles unless a project runbook sets another finite limit; start browser tests with one worker when safe capacity is unverified or heavy jobs already overlap; and tear down only task-owned resources. For meaningful code or workflow changes, and before a push, a pull request, a remote CI run, or a CI retry, use the `local-ci-preflight` skill, adding `aws-local-preflight` when AWS is in scope. Local evidence stays separate from remote acceptance, and neither skill grants authority to push, deploy, call cloud services, start shared services, or dispatch remote CI.
 
 Each bundled role definition carries a **Role perspective** the root may apply directly to a concrete question without launching a subagent; doing so changes nothing about the root's model, effort, permissions, or ownership, requires no role sequence or separate report, and is self-review rather than independent verification. The root uses subagents sparingly: it delegates a bounded piece only when the concrete benefit — independent evidence, genuinely parallel progress, or reading it would rather keep out of its context — outweighs the context, coordination, latency, and review the helper costs, or a governing instruction requires independent assistance, and always under a finite launch and retry allowance set before the first dispatch.
 

@@ -81,9 +81,10 @@ must_not_modify:
 open_decisions: []
 
 validation_required:
-  - "targeted tests"
+  - "targeted E2E tests"
   - "typecheck"
-  - "integration test"
+  - "combined-flow E2E tests"
+  - "every created unit test is temporary; all removed after replacement E2E coverage passes"
 
 notes: >-
   Include only coordination-relevant assumptions, risks, or handoff details.

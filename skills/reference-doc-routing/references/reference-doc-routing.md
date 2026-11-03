@@ -46,10 +46,13 @@ Find the sections that bear on the task and read those. A large document read en
 
 ## When a document and the code disagree
 
-1. **Say so.** Do not silently pick one.
-2. **Prefer primary evidence** for the implementation decision.
-3. **Work out which is wrong.** Sometimes the code is a bug and the doc is right; sometimes the doc is stale; sometimes the code is deliberately working around something the doc does not mention. These lead to different actions.
-4. **Flag or update the stale document** where that is in scope.
+Two different questions are hiding in every disagreement: what the system *does* now, and what it *must* do. Evidence answers the first; authority answers the second.
+
+1. **Settle authority first.** Follow the host's instruction hierarchy, then the relevant scope and specificity within the same authority level. An authorized requirement, an explicit user decision, or an approval gate governs the target behavior.
+2. **Say so.** Report the conflict, keeping what the system currently does separate from what the governing requirement says it must do. Do not silently pick one.
+3. **Establish current behavior from primary evidence.** Code, tests, schemas, configuration, and runtime observations show what is true now — but code or a passing test does not override an authorized target contract, a user decision, or an approval gate.
+4. **Work out which is wrong.** Sometimes the code is a bug and the doc is right; sometimes the doc is stale; sometimes the code is deliberately working around something the doc does not mention. These lead to different actions.
+5. **Update stale documentation only within the task's authority**; otherwise flag it. Do not silently decide which requirement to discard.
 
 Primary evidence is: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, and authoritative external documentation.
 
@@ -72,4 +75,4 @@ on them. Do not summarize unrelated sections.
 
 Always tell the subagent which label applies. A subagent given an unlabeled document treats it as truth, and you will get back work built on a stale premise with a confident summary attached.
 
-Ask for evidence, not agreement: the subagent should come back with the paths and symbols it checked, not with a restatement of the document you sent it.
+Require claims supported by evidence, not agreement: the subagent should come back with the paths and symbols it checked, not with a restatement of the document you sent it.

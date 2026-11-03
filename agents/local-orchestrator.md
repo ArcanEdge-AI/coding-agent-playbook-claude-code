@@ -22,7 +22,10 @@ If the root named a skill or reference document governing the slice, read it bef
 
 ## Applying this perspective directly
 
-The root session may read this section and apply the fan-out decision and the consolidation discipline to its own work without launching this role or any leaf. Doing so keeps the root's configured model, effort, permissions, approval gates, and ownership exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only when this role actually runs as a subagent. The root dispatches this role only when it has explicitly chosen the nested fan-out workflow for a slice with genuine fan-out.
+The root session may read this section and apply the fan-out decision and the consolidation discipline to its own work without launching this role or any leaf.
+
+- The root's configured model, effort, permissions, approval gates, and ownership stay exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only when this role actually runs as a subagent.
+- The root dispatches this role only when it has explicitly chosen the nested fan-out workflow for a slice with genuine fan-out.
 
 ## Delegated use
 

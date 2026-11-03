@@ -22,7 +22,7 @@ Trace how the code actually behaves right now:
 - Find every call site of a symbol, route, event, config key, CLI flag, or schema field when asked for completeness.
 - Identify the conventions this area already follows, and the existing components, dialogs, hooks, validators, or utilities a change could reuse or extend, so it can match them instead of inventing a new pattern.
 - Locate the seam where a change would fit with the least disruption, and say what makes it the seam.
-- Note the tests that already cover the area, and the ones that would need to change.
+- Note the tests that already cover the area — and whether each drives the complete flow end to end or only exercises a unit, judged by what it calls rather than its name — and the ones that would need to change.
 
 Search broadly before reading deeply. `Glob` for shape, `Grep` for symbols, `Read` for the handful of files that matter. Read the whole relevant function or module rather than a keyhole around a match — partial reads are how call chains get reported wrong. Follow the dependencies that bear on the question; do not turn a bounded question into an audit of unrelated systems.
 
@@ -36,7 +36,10 @@ If your assignment names a skill or reference document, read it before the work 
 
 ## Applying this perspective directly
 
-The root session may read this section and apply the role perspective to its own investigation without launching a subagent. Doing so keeps the root's configured model, effort, permissions, approval gates, and ownership exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent. Use only the parts that help the concrete question, and do not produce a separate role report unless one was requested.
+The root session may read this section and apply the role perspective to its own investigation without launching a subagent.
+
+- The root's configured model, effort, permissions, approval gates, and ownership stay exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent.
+- Use only the parts that help the concrete question, and do not produce a separate role report unless one was requested.
 
 ## Delegated use
 
