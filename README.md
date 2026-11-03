@@ -47,17 +47,17 @@ The easiest install path is to give this repository URL to your coding agent:
 ```text
 Install this globally: https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code
 
-Follow the repository's INSTALL.md exactly. Use full mode even when an older installation exists; do not infer support-only mode unless I explicitly request it. Preserve my existing instructions, back up anything you change, install the global instructions, the self-contained skill packages, and the custom subagents, then report the installed files and validation results.
+Follow the repository's INSTALL.md exactly. Use full mode even when an older installation exists; do not infer support-only mode unless I explicitly request it. Preserve my existing instructions, back up anything you change, install the global instructions, the self-contained skill packages, and the custom subagents, then report the installed files and validation results. Then install or update the companion plugins INSTALL.md lists to their latest versions from their official sources.
 ```
 
-That is the intended public experience: users should not need to understand the file layout before installation. The agent should read `INSTALL.md`, clone or fetch the repository, install into user-level Claude Code configuration locations under the resolved Claude Code home, validate the result, and report what changed.
+That is the intended public experience: users should not need to understand the file layout before installation. The agent should read `INSTALL.md`, clone or fetch the repository, install into user-level Claude Code configuration locations under the resolved Claude Code home, validate the result, install or update the companion plugins to their latest versions, and report what changed.
 
 Support-only is an explicit pointer-only configuration, not an update mode. Use it only when the user confirms the global instructions already live in their global `CLAUDE.md` manually:
 
 ```text
 Install this in support-only mode: https://github.com/ArcanEdge-AI/coding-agent-playbook-claude-code
 
-I already added the global custom instructions manually. Follow INSTALL.md, but do not duplicate the full instructions into CLAUDE.md. Install the skill packages and custom subagents only.
+I already added the global custom instructions manually. Follow INSTALL.md, but do not duplicate the full instructions into CLAUDE.md. Install the skill packages and custom subagents only, then install or update the companion plugins INSTALL.md lists to their latest versions from their official sources.
 ```
 
 ---
@@ -91,6 +91,15 @@ Support-only mode is `--support-only` (`-SupportOnly` for the PowerShell launche
 ```bash
 python3 install/install.py --full --dry-run
 ```
+
+### Download separately
+
+The installer copies the playbook's files and downloads nothing else. Get these yourself:
+
+- **Companion plugins**: Intuitive Software Design, Impeccable, Taste, and Humanizer. They are part of the full setup, but this repository does not include them. Install each one from its official source, then update them whenever you install or update the playbook, so you always run their latest versions rather than a pinned one. [INSTALL.md](INSTALL.md#companion-plugins) has the install and update commands.
+- **Python 3.9 or later** for the helper scripts some skills run. The installer itself needs Python 3.8 or later.
+- **Moto**, supplied by your project, when you use `aws-local-preflight`.
+- **A code-knowledge-graph tool such as GitNexus**, optionally, for `technical-debt-auditor`.
 
 ### Repository-specific guidance
 
@@ -147,7 +156,7 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 | Platform documentation | [`platform-documentation`](skills/platform-documentation/SKILL.md) | Discover behavior from the implementation, then write or correct documentation for its readers. |
 | Production readiness | [`production-pass-orchestrator`](skills/production-pass-orchestrator/SKILL.md), [`production-readiness-report`](skills/production-readiness-report/SKILL.md), and eleven specialist lanes | Evidence-backed assessments, scoped remediation, release gates, and client-facing reports across the complete production flow. |
 | Role definitions | `agents/` | Six Claude Code definitions — exploration, documentation, triage, implementation, review, and fan-out coordination — each usable as a perspective the root applies directly or as a bounded subagent assignment. |
-| Companion plugins | [`INSTALL.md`](INSTALL.md#companion-plugins), [`THIRD_PARTY.md`](THIRD_PARTY.md) | Intuitive Software Design, Impeccable, Taste, and Humanizer, installed from their official Claude distributions — the Anthropic Directory or each project's Claude Code plugin marketplace. Not bundled, and not installed by this playbook. |
+| Companion plugins | [`INSTALL.md`](INSTALL.md#companion-plugins), [`THIRD_PARTY.md`](THIRD_PARTY.md) | Intuitive Software Design, Impeccable, Taste, and Humanizer. Not bundled: download each one separately from its official Claude distribution — its project's Claude Code plugin marketplace or the Anthropic Directory — and keep it on its latest version. |
 | Repository guidance | `CLAUDE.md` | Instructions for maintaining this public playbook repository. |
 
 The installer ships 28 skill packages. The eleven production specialist lanes are:

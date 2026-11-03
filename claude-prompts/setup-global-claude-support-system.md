@@ -117,7 +117,7 @@ $CLAUDE_HOME/
     isolated-worker.md
 ```
 
-Every skill is a complete package: copy each skill directory whole, byte for byte — references, templates, assets, and scripts included — so that every `references/`, `scripts/`, or `assets/` path written inside a skill resolves inside that skill's own directory. Companion plugins are not part of this setup; they install from their official Claude distributions. Do not run any bundled script while copying; a skill's own workflow runs its scripts later, under that session's permissions. Do not create a top-level `references/` directory; the `reference-doc-routing` skill packages the catalog of the workflow skills' references and templates by owning skill. If an earlier setup left `$CLAUDE_HOME/references/`, leave it in place and report it; the repository installer retires those files safely when they are unchanged, and you must not delete them here.
+Every skill is a complete package: copy each skill directory whole, byte for byte — references, templates, assets, and scripts included — so that every `references/`, `scripts/`, or `assets/` path written inside a skill resolves inside that skill's own directory. Companion plugins are not part of this setup; they need to be downloaded separately from their official Claude distributions, at their latest versions, as the playbook's `INSTALL.md` describes. Do not run any bundled script while copying; a skill's own workflow runs its scripts later, under that session's permissions. Do not create a top-level `references/` directory; the `reference-doc-routing` skill packages the catalog of the workflow skills' references and templates by owning skill. If an earlier setup left `$CLAUDE_HOME/references/`, leave it in place and report it; the repository installer retires those files safely when they are unchanged, and you must not delete them here.
 
 ## Agent Definitions
 
@@ -206,7 +206,7 @@ Reusable Claude Code skills live under the Claude Code home skills directory:
 - `skills/senior-code-review/SKILL.md`
 - `skills/session-cleanup/SKILL.md`
 
-The same directory holds domain skills that load on their own triggers: repository review and technical-debt audit, platform documentation, and the production-readiness collection. Companion plugins — Intuitive Software Design, Impeccable, Taste, and Humanizer — are not part of this install; each comes from its official Claude distribution, as the playbook's `INSTALL.md` describes.
+The same directory holds domain skills that load on their own triggers: repository review and technical-debt audit, platform documentation, and the production-readiness collection. Companion plugins — Intuitive Software Design, Impeccable, Taste, and Humanizer — are not part of this install; they are downloaded separately from their official Claude distributions and kept on their latest versions, as the playbook's `INSTALL.md` describes.
 
 Custom Claude Code subagents live under the Claude Code home agents directory:
 
@@ -262,7 +262,7 @@ If the installed Claude Code version uses a different supported frontmatter sche
 8. Confirm every skill package, reference, and template listed above exists, and that every `references/...` path written inside a skill resolves inside that skill's own directory. Confirm no new top-level `references/` directory was created.
 9. Confirm the routing docs state that a helper's model is chosen for its work within the approved routes (Haiku for lookup and extraction, Opus at `medium` for judgment, the root itself for the hardest reasoning), independent of the main session's model, that the main session's configuration is never changed, that nesting is enabled by default at three layers, that this playbook caps at two and is flat by default, that `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=2` is optional hardening rather than a precondition, that the per-invocation `model` outranks frontmatter and `CLAUDE_CODE_SUBAGENT_MODEL` unless `CLAUDE_CODE_SUBAGENT_MODEL_FORCE` is set, and that effort is a role property with no per-invocation parameter.
 10. Confirm only Claude Code paths, commands, model aliases, effort levels, permission modes, tool names, and frontmatter fields were installed.
-11. Report files backed up, files skipped and why, assumptions made, and whether the pointer section was created, updated, already present, or skipped.
+11. Report files backed up, files skipped and why, assumptions made, and whether the pointer section was created, updated, already present, or skipped. Then list the companion plugins from the playbook's `INSTALL.md` that still need to be installed, or updated to their latest versions.
 
 Final response format:
 

@@ -36,7 +36,7 @@ Reusable Claude Code skills live under the Claude Code home skills directory:
 - `skills/senior-code-review/SKILL.md`
 - `skills/session-cleanup/SKILL.md`
 
-The same directory holds domain skills that load on their own triggers: repository review and technical-debt audit, platform documentation, and the production-readiness collection. Companion plugins — Intuitive Software Design, Impeccable, Taste, and Humanizer — are not part of this install; each comes from its official Claude distribution, as the playbook's `INSTALL.md` describes.
+The same directory holds domain skills that load on their own triggers: repository review and technical-debt audit, platform documentation, and the production-readiness collection. Companion plugins — Intuitive Software Design, Impeccable, Taste, and Humanizer — are not part of this install; they are downloaded separately from their official Claude distributions and kept on their latest versions, as the playbook's `INSTALL.md` describes.
 
 Custom Claude Code subagents live under the Claude Code home agents directory:
 
