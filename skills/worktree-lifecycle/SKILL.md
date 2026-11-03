@@ -58,7 +58,7 @@ Remove a task-created auxiliary only after verifying:
 
 Prefer the supported Claude Code cleanup path when the host owns the auxiliary. Otherwise use non-force `git worktree remove <exact-path>`, then verify both that the path is gone and that it no longer appears in `git worktree list --porcelain`.
 
-**Never** use force removal, `reset`, `clean`, `stash`, broad recursive deletion, or age, inactivity, or clean status alone as authority to delete.
+**Never** use force removal, `reset`, `clean`, `stash`, or broad recursive deletion as a cleanup shortcut. Age, inactivity, or a clean status alone does not establish permission or safety to remove a worktree.
 
 If any gate fails, preserve it and report the canonical path, owner, branch or detached HEAD, exact blocker, and next action. Preserving something you cannot verify is the correct outcome.
 

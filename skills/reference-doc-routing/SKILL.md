@@ -20,7 +20,7 @@ Full detail: `references/reference-doc-routing.md`. This package also carries `r
 4. **Read narrowly.** `Grep` for the symbol, endpoint, table, or concept, then read around the hits. Read end to end only when the task really is about the whole subject.
 5. **Check for drift.** Does it reference files, symbols, or endpoints that no longer exist? Do its examples use an API shape the code has moved past? Does it predate a migration visible in the history? Does it contradict the tests?
 6. **Verify anything implementation-relevant against the code** before you rely on it.
-7. **Report conflicts** between a document and primary evidence. Do not silently pick one — work out whether the doc is stale, the code is a bug, or the code is deliberately working around something.
+7. **Report conflicts** between a document and primary evidence. Do not silently pick one — work out whether the doc is stale, the code is a bug, or the code is deliberately working around something. Authority and evidence answer different questions: the instruction hierarchy and authorized requirements govern what the behavior *must* be; code, tests, schemas, and runtime observations establish what it *is*. A passing test does not override an authorized requirement. Update a stale document only within the task's authority; otherwise flag it.
 
 ## Passing documents to a subagent
 

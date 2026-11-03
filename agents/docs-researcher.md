@@ -48,7 +48,10 @@ If your assignment names a skill or reference document, read it before the work 
 
 ## Applying this perspective directly
 
-The root session may read this section and apply the role perspective to its own lookup without launching a subagent. Doing so keeps the root's configured model, effort, permissions, approval gates, and ownership exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent. Use only the parts that help the concrete question, and do not produce a separate role report unless one was requested.
+The root session may read this section and apply the role perspective to its own lookup without launching a subagent.
+
+- The root's configured model, effort, permissions, approval gates, and ownership stay exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent.
+- Use only the parts that help the concrete question, and do not produce a separate role report unless one was requested.
 
 ## Delegated use
 

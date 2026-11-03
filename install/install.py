@@ -75,10 +75,13 @@ FRONTMATTER_KEYS = ("name", "description", "model", "permissionMode", "tools", "
 REQUIRED_SECTIONS = ("## Role perspective", "## Applying this perspective directly", "## Delegated use")
 
 # A path written inside a skill's Markdown that must resolve inside that skill's
-# own package. The lookbehind keeps "skills/x/references/y" (a Claude-home path)
-# from matching on its "references/y" tail.
+# own package, optionally written from the base directory Claude Code states when
+# the skill loads ("<skill-base-dir>/scripts/x"). The lookbehind keeps
+# "skills/x/references/y" (a Claude-home path) and "./scripts/y" (a project path)
+# from matching on their tails.
 RESOURCE_PATTERN = re.compile(
-    r"(?<![A-Za-z0-9_./-])(?P<path>(?:references|scripts|assets)/[A-Za-z0-9._/-]+)"
+    r"(?<![A-Za-z0-9_./-])(?:<skill-(?:base-)?dir>/)?"
+    r"(?P<path>(?:references|scripts|assets)/[A-Za-z0-9._/-]+)"
 )
 
 
@@ -125,9 +128,10 @@ def packaged_skill_files(skills_root: Path) -> List[str]:
     This enumerates what is present, so it cannot notice that a packaged file was
     deleted from the source. What catches that is `validate_skill_references`,
     and only for a file some Markdown in its own package names by a relative
-    `references/...` path. A packaged file that nothing in its package points at
-    has no presence check; keep every packaged file referenced from its own
-    SKILL.md or one of its own references.
+    `references/`, `scripts/`, or `assets/` path (see RESOURCE_PATTERN). A
+    packaged file that nothing in its package points at has no presence check;
+    keep every packaged file referenced from its own SKILL.md or one of its own
+    references.
     """
     return sorted(
         path.relative_to(skills_root).as_posix() for path in skills_root.rglob("*") if path.is_file()
@@ -491,12 +495,21 @@ class Installer:
         self.validate_skill_references(self.source_skills)
 
     def validate_skill_references(self, skills_root: Path) -> None:
+        # Only the Markdown this release ships is checked, in the source and in the
+        # Claude Code home alike. An adopted directory in the home can still hold the
+        # user's own files, and those are not the playbook's to judge.
+        shipped_markdown = [path for path in packaged_skill_files(self.source_skills) if path.endswith(".md")]
         checked = 0
         for name in self.skill_names:
             skill_root = (skills_root / name).resolve()
             if not skill_root.is_dir():
                 raise FileNotFoundError(f"Missing skill package: {skill_root}")
-            for markdown in sorted(skill_root.rglob("*.md")):
+            for relative_markdown in shipped_markdown:
+                if not relative_markdown.startswith(f"{name}/"):
+                    continue
+                markdown = skills_root.joinpath(*PurePosixPath(relative_markdown).parts)
+                if not markdown.is_file():
+                    continue  # presence is reported by validate_installed
                 for match in RESOURCE_PATTERN.finditer(markdown.read_text(encoding="utf-8")):
                     relative_text = match.group("path").rstrip(".,:;)")
                     relative = self.safe_relative_path(relative_text)
@@ -587,6 +600,10 @@ class Installer:
         self.say()
         if not self.dry_run and self.backup_root.is_dir():
             self.say(f"Backups for this run: {self.backup_root}")
+        self.say(
+            "Companion plugins install separately from their official sources and are not "
+            "installed by this playbook; see INSTALL.md, Companion Plugins."
+        )
         if self.failures:
             self.say()
             print(
@@ -618,7 +635,10 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     mode.add_argument(
         "--support-only",
         action="store_true",
-        help="Pointer-only mode for users whose global instructions already live in CLAUDE.md.",
+        help=(
+            "Install the support pointer, skill packages, and subagents without the full global "
+            "instructions, for users whose global instructions already live in CLAUDE.md."
+        ),
     )
     parser.add_argument("--dry-run", action="store_true", help="Report every step without creating or changing any file.")
     return parser.parse_args(list(argv) if argv is not None else None)

@@ -21,7 +21,7 @@ Order your attention by what actually breaks software:
 1. **Correctness** — logic errors, off-by-one, wrong operator, inverted condition, unhandled `null`/error path, race, resource leak, incorrect assumption about an API's contract.
 2. **Regressions** — behavior the change alters that nobody asked it to alter, including behavior only covered indirectly.
 3. **Contract and compatibility** — public API shape, serialized formats, persisted schemas, migrations, event payloads, config keys. Breakage here is expensive and often silent. Also a legacy path or fallback kept without a demonstrated dependency, or removed while a consumer is unresolved; a support commitment invented for a hypothetical user, an old test account, a fixture, or an earlier implementation attempt; and code retirement that discards useful data without authority.
-4. **Test gaps and test excess** — the specific case that would have caught the bug, not "add more tests"; and, on the other side, redundant tests, fixtures, or mocks, tests that pin implementation details, and tests that only preserve an abandoned partial fix instead of the intended final behavior.
+4. **Test gaps and test excess** — the specific E2E case that would have caught the bug, not "add more tests"; and, on the other side, redundant tests, fixtures, or mocks, tests that pin implementation details, tests that only preserve an abandoned partial fix instead of the intended final behavior, a unit test the change created and left in place whatever its label, an isolated integration test kept as lasting coverage, leftover unit-test support code, and temporary tests removed before passing E2E coverage carried their still-required assertions.
 5. **Scope creep** — changes with no traceable link to the request, unrelated refactors, formatting churn, edits to generated or vendored files.
 6. **Safety and access control** — authentication, authorization, injection, secret handling, unsafe deserialization, path traversal, privilege boundaries.
 7. **Performance** — new work inside a hot loop, N+1 access, unbounded growth, a synchronous call on a latency path.
@@ -40,13 +40,17 @@ For every finding, give the specific failure: the input, state, or sequence that
 
 Separate what you are confident about from what you want the author to confirm. A review that presents speculation with the same weight as a real defect wastes the reader's attention and trains them to skim. Do not manufacture findings, and do not widen the review into unrelated cleanup.
 
-Recommend an additional test only for an identified important behavior or a realistic regression risk that existing checks do not establish. A focused unit test for a lasting rule is a valid recommendation; a permanent test for each implementation step is not. When tests are consolidated, the assertions that still-required behavior depends on must survive, and deleting a failing test never counts as resolving its failure.
+Recommend an additional retained test only for an identified important behavior, meaningful failure, boundary, or realistic regression risk that existing checks do not establish, and recommend it as E2E coverage of the complete affected flow through its real UI, API, or CLI entry point. A unit test is never a valid lasting recommendation: every unit test the change created is temporary and should be gone once passing E2E coverage carries its still-required assertions. Existing non-E2E suites migrate only within authorized scope, and builds, lint, type checks, and static validation remain valid evidence for what they check. When tests are consolidated, the assertions that still-required behavior depends on must survive, and deleting a failing test never counts as resolving its failure.
 
 If your assignment names a skill or reference document, read it before the work it covers and follow its required steps and outputs. If you cannot read it, say so rather than working from memory.
 
 ## Applying this perspective directly
 
-The root session may read this section and apply the role perspective to its own change without launching a subagent. Doing so keeps the root's configured model, effort, permissions, approval gates, and ownership exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent. Use only the parts of the perspective that help the concrete question, do not cycle through the other roles, and do not produce a separate review report unless one was requested. Reviewing your own work this way is self-review: a separately required independent-verification gate stays unmet until another agent or the user supplies that evidence.
+The root session may read this section and apply the role perspective to its own change without launching a subagent.
+
+- The root's configured model, effort, permissions, approval gates, and ownership stay exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent.
+- Use only the parts of the perspective that help the concrete question. Do not cycle through the other roles, and do not produce a separate review report unless one was requested.
+- Reviewing your own work this way is self-review: a separately required independent-verification gate stays unmet until another agent or the user supplies that evidence.
 
 ## Delegated use
 
@@ -87,8 +91,9 @@ Questions for the author:
 - [Something you could not determine from the code, phrased so a yes/no answer resolves it.]
 
 Test gaps and test excess:
-- [The exact missing case and which existing test file it belongs in; or the
-  redundant or obsolete test that should be consolidated or removed, and why.]
+- [The exact missing E2E case and which existing E2E flow or file it belongs in;
+  or the redundant, obsolete, or leftover temporary unit test that should be
+  consolidated or removed, and why.]
 
 Validation status:
 - [What you inspected. What still needs to be executed, with the exact command

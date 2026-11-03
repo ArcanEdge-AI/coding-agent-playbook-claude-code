@@ -2,7 +2,7 @@
 
 These are the durable, cross-repository references the root Claude Code session uses to route work, delegate when a helper earns its cost, review, validate, and coordinate with other sessions.
 
-Each one ships inside the skill that owns it, under `skills/<skill>/references/` in the Claude Code home, so an installed skill never depends on a loose top-level directory. This catalog belongs to the `reference-doc-routing` skill and lists every packaged reference and template by owner. A path below that starts with `skills/` is relative to the Claude Code home; a path that starts with `references/` is inside this package.
+Each one ships inside the skill that owns it, under `skills/<skill>/references/` in the Claude Code home, so an installed skill never depends on a loose top-level directory. This catalog belongs to the `reference-doc-routing` skill and lists every packaged reference and template of the playbook's workflow skills by owner. Domain skills — documentation, debt audit, production readiness — name their own references, assets, and scripts in their `SKILL.md`, so they are not repeated here. A path below that starts with `skills/` is relative to the Claude Code home; a path that starts with `references/` is inside this package.
 
 They are deliberately generic. Repository-specific workflows, machine quirks, project names, sensitive access material, and one-off incident notes do not belong here — they belong in a repository's own `CLAUDE.md`, in a repository skill, or in local notes.
 
@@ -13,7 +13,7 @@ They are deliberately generic. Repository-specific workflows, machine quirks, pr
 3. Consult only the references that bear on the task, and only the relevant sections.
 4. Treat every reference as supporting context, not automatic truth.
 5. Do the work directly by default. Delegate a bounded piece to a subagent only when that has a concrete benefit — independent evidence, genuine parallelism, or reading you would rather keep out of your context — passing only the context that subagent needs.
-6. Resolve every conflict with primary evidence.
+6. Resolve instruction conflicts by authority, and use primary evidence to establish current behavior — not to override an authorized target requirement.
 
 Primary evidence: current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
 
@@ -30,6 +30,7 @@ Primary evidence: current code, tests, schemas, configuration, logs, build outpu
 | `skills/multi-session-coordination/references/multi-session-coordination.md` | `multi-session-coordination` | Other Claude Code sessions, branches, worktrees, or pull requests may be touching the same area. |
 | `skills/session-cleanup/references/post-session-cleanup-methodology.md` | `session-cleanup` | Substantial work is finishing, or the user asked for a cleanup or integrity pass. How to establish the baseline and the full work delta, the seventeen checks, and what belongs in the completion report. |
 | `skills/handoff/references/context-contract.md` | `handoff` | The work is moving to a fresh session. Evidence labels, the material-context inventory, repository handoff rules, a seed-prompt skeleton, and the completeness check. |
+| `skills/aws-local-preflight/references/moto-boundaries.md` | `aws-local-preflight` | A local preflight touches AWS services. What Moto covers, how endpoint isolation fails closed, and which gaps still need real AWS acceptance. |
 
 ## The templates
 
@@ -46,6 +47,9 @@ Primary evidence: current code, tests, schemas, configuration, logs, build outpu
 | `skills/multi-session-coordination/references/templates/active-work-record.md` | `multi-session-coordination` | Optional repository-local record of session ownership, contracts, dependencies, blockers, and validation gates. |
 | `skills/task-graph-orchestration/references/templates/task-graph.md` | `task-graph-orchestration` | Optional instruction-only task graph for complex work with real dependencies, executed by the root by default. |
 | `skills/worktree-lifecycle/references/templates/worktree-manifest.md` | `worktree-lifecycle` | Optional task-local ledger for auxiliary-worktree permits and dispositions. |
+| `skills/local-ci-preflight/assets/LOCAL_VALIDATION.template.md` | `local-ci-preflight` | A project's local validation contract, shipped as `NOT_CONFIGURED` until adapted to the project's inspected commands. |
+| `skills/local-ci-preflight/assets/claude-md-local-validation.md` | `local-ci-preflight` | A project `CLAUDE.md` snippet that routes local validation before remote CI, for setups without the playbook's global instructions. |
+| `skills/aws-local-preflight/assets/LOCAL_VALIDATION.aws.template.md` | `aws-local-preflight` | The AWS extension of the local validation contract: Moto coverage mapping, endpoint isolation, and remote-required gaps. |
 
 ## Where things belong
 

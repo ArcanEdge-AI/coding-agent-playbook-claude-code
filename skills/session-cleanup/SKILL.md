@@ -73,11 +73,11 @@ Before every additional change, ask: *is this necessary to correctly complete, s
 | 8. Security boundaries | A touched surface handles secrets, identity, authorization, ownership, input, logs, dynamic execution, or files |
 | 9. Dependencies and configuration | Packages, lockfiles, environment variables, build settings, or deployment configuration changed |
 | 10. UI and UX | Any user interface changed. Reading the source does not prove UI behavior |
-| 11. Tests — intended final behavior and realistic regression risks, not abandoned partial fixes | Always |
+| 11. Tests — E2E coverage of the intended final behavior, meaningful failures, and boundary cases; every created unit test removed once passing E2E coverage carries its still-required assertions | Always |
 | 12. Validation pipeline — the smallest meaningful checks, then the required affected gates | Always |
 | 13. Documentation against reality | Documentation, setup, configuration, APIs, examples, or user-facing copy is affected |
 | 14. Deferred-work markers | Always |
-| 15. Repository hygiene | Always |
+| 15. Repository hygiene and runtime resources | Always. Reconcile task-owned runtime resources; this is not a sweep of unrelated ones |
 | 16. Next-developer review | Always |
 | 17. Final scope check | Before every additional cleanup change |
 

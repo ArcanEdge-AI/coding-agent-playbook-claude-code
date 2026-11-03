@@ -101,13 +101,14 @@ State explicitly: one owner per shared file, contract, schema, or coupled area; 
 
 Prefer the smallest safe coordination change. Never allow independent redesigns of the same shared subsystem. Never say only "coordinate with the other session."
 
-### 7. Resolve disagreements with primary evidence
+### 7. Resolve disagreements: authority first, then evidence
 
-1. Current `CLAUDE.md` and authoritative project docs
-2. Current code, tests, schemas, configuration, runtime behavior
-3. Explicit user decisions
-4. Established shared contracts already in use
-5. The smallest safe compatible change
+Keep instruction authority separate from evidence of current behavior:
+
+1. Follow the host's instruction hierarchy, then the relevant scope and specificity within the same authority level — the applicable `CLAUDE.md` files and authoritative project docs included. Preserve explicit user decisions within that hierarchy.
+2. Establish current behavior from code, tests, schemas, configuration, and runtime observations. These facts show what is true now; they do not override an authorized target requirement.
+3. Check established shared contracts and their supported consumers. Report a conflict with the requested change instead of silently preserving or discarding the contract.
+4. Choose the smallest safe change that satisfies the governing requirements and the compatibility they require.
 
 Ask the user only when the remaining decision materially affects architecture, behavior, data, safety, release timing, or user-visible output.
 
@@ -119,7 +120,9 @@ Include the resume target when useful: `claude --resume "Session Name"`.
 
 ### 9. Define integration verification
 
-Match the combined blast radius: targeted tests per feature, contract tests, schema and migration checks, typechecking, build validation, integration tests, end-to-end flow checks, and a final combined diff review.
+Match the combined blast radius: targeted E2E tests per feature, E2E coverage of the combined user flows and shared contracts, schema and migration checks, typechecking, build validation, and a final combined diff review.
+
+Retain E2E behavioral tests only. Every unit test any owner created is temporary, whatever its purpose; none remains in the completed change. Require each owner to remove its unit tests and their exclusive support code after passing E2E coverage carries their still-required assertions, failure and boundary cases included. Existing non-E2E suites migrate only within authorized scope, and required repository gates stay.
 
 **Inspect the combined result yourself** before declaring the work compatible.
 

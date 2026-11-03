@@ -49,7 +49,9 @@ Development branches are optional. When one feature integration branch implement
 
 ## Before promoting, validate the whole feature
 
-Run what the repository and the change actually warrant: build, tests, lint, format, typecheck, static analysis, contract and integration tests, end-to-end or manual checks, and a final review of the combined diff. Then confirm no required development work is still outstanding.
+Run what the repository and the change actually warrant: build, lint, format, typecheck, static analysis, E2E tests of the combined flows, contracts, integrations, meaningful failures, and boundary cases, manual checks where they help, and a final review of the combined diff. Then confirm no required development work is still outstanding.
+
+Retain E2E behavioral tests only. Every unit test created for the feature is temporary; before promotion, remove each one and its exclusive support code once passing E2E coverage carries its still-required assertions. Required repository gates stay, and existing non-E2E suites migrate only within authorized scope.
 
 A passing subset is not evidence that the assembled feature works. Say what you ran and what it produced, and name anything you did not run.
 

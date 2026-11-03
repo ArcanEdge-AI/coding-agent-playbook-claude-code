@@ -126,7 +126,7 @@ When a gate fails:
 - Keep accepted outputs from unrelated nodes.
 - Rerun the failed node after stating the failure evidence and what will change. If a helper ran it, the retry stays within the approved routes and consumes the allowance; a different model is not a substitute for a sharper assignment, and effort is never raised to make it pass.
 - Rerun downstream nodes **only** where the input they consumed actually became invalid.
-- Recompile the affected portion when the failure reveals a missing edge or a wrong decomposition.
+- Update the affected portion of the graph when the failure reveals a missing dependency or a wrong decomposition.
 - Stop retrying when the same failure repeats, and report the blocker.
 
 Before completion: verify combined behavior and the final diff, confirm the completeness counts, and confirm no required node or approval gate is still open. Reconcile every task-created auxiliary worktree.

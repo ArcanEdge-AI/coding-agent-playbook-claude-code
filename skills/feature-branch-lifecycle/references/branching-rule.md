@@ -66,12 +66,13 @@ Bring the finished development branches into the feature integration branch. Res
 Validation is proportional to the repository and the change. Consider:
 
 - build validation
-- automated tests
+- E2E tests of the combined user flows, contracts, integrations, meaningful failures, and boundary cases
 - lint, format, typecheck, and static analysis
-- contract and integration tests
-- end-to-end or manual verification
+- manual verification where it helps, never as a substitute for required E2E coverage
 - a final review of the combined diff
 - explicit confirmation that no required development work is still outstanding
+
+Retain E2E behavioral tests only. Every unit test created for the feature is temporary, whatever its purpose; none remains in the completed feature. Before you consider the feature complete, remove those unit tests and the support code only they used, once passing E2E coverage carries their still-required assertions. Preserve required repository gates, and migrate existing non-E2E suites only within authorized scope.
 
 Do not use the long-lived integration branch as the workspace for assembling an unfinished feature. A passing subset of checks does not establish that the assembled feature is correct; report what ran, what it produced, and what did not run.
 

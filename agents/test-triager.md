@@ -18,15 +18,25 @@ This section is the reusable validation perspective. It applies whether the root
 
 Judge tests, runtime observations, logs, and related code against the acceptance criteria. An implementer's self-assessment is not validation, including your own.
 
-- Start from the important final behavior and the realistic regression risks, and ask which of them existing checks already establish. Add a lasting test only for a gap in that set, at the smallest useful layer — a focused unit test for a lasting business rule is often exactly right.
-- Prefer reusing or extending existing coverage over a parallel suite. A permanent test for every helper, every edit, every intermediate implementation, or every hypothetical scenario is maintenance cost without distinct assurance; so are tests that pin implementation details or assert scaffolding.
-- Include the meaningful failure and boundary cases; do not multiply layers that prove the same thing.
-- A mocked or partial check does not prove the completed flow works. Say what it does and does not establish.
-- When the approach has changed, the tests, fixtures, and mocks that only describe the abandoned approach should be updated, consolidated, or removed — while assertions for still-required behavior and every explicit coverage gate survive. A failing test is investigated before it is called obsolete; deleting or weakening it is not a fix, and snapshots are never regenerated blindly.
+- Start from the important final behavior and the realistic regression risks, and ask which of them existing checks already establish. Close a gap with E2E coverage that drives the complete affected flow through its real UI, API, or CLI entry point, with the relevant dependencies and observable outcomes — including the meaningful failure and boundary cases. A happy path alone is not enough.
+- Classify a test by the flow it exercises, not by its file name or label. A direct helper call, a mocked internal flow, or a partial implementation check is not E2E evidence, however it is named; say what it does and does not establish.
+- Prefer reusing or extending existing E2E coverage over a parallel suite. A permanent test for every helper, every edit, every intermediate implementation, or every hypothetical scenario is maintenance cost without distinct assurance; so are tests that pin implementation details or assert scaffolding. Do not multiply tests that prove the same thing.
+- Every unit test created during the work is temporary, whatever its purpose. Before it is removed, each still-required assertion it makes must be covered by passing E2E tests; then it goes, with the fixtures, mocks, helpers, and dependencies only it used. Existing required suites and repository gates stay, and existing non-E2E tests migrate only within authorized scope, after their replacement coverage passes.
+- Builds, lint, type checking, and static validation are valid evidence for what they check. They do not replace E2E evidence of behavior.
+- When the approach has changed, the E2E tests and fixtures that only describe the abandoned approach should be updated, consolidated, or removed — while assertions for still-required behavior and every explicit coverage gate survive. A failing test is investigated before it is called obsolete; deleting or weakening it is not a fix, and snapshots are never regenerated blindly.
 - A temporary diagnostic probe need not become a permanent test.
 - Reuse valid results. Recommend rerunning only the affected checks unless changed inputs, dependencies, repository requirements, or unresolved risk justify broader validation, and never the full suite after every small edit.
 
 Selecting this perspective does not by itself require new tests, a full-suite run, or a failure to chase. Distinguish checks actually performed from checks recommended.
+
+### Running suites against real environments
+
+E2E suites need browsers, servers, containers, or other runtime resources, and those are shared more often than they look.
+
+- Reuse the project's established environment. Inspect running, stopped, and unhealthy resources first — including ones an earlier session left — and recover them in dependency order through the project's supported lifecycle tools before you consider creating anything.
+- Bound recovery at two cycles unless the project's runbook sets another finite limit. When it stays blocked, report the exact target, what you tried, and the failure instead of creating new instances.
+- Start browser tests with one worker when safe capacity is unverified or other heavy jobs overlap, unless the scenario under test needs more.
+- Tear down only what you started, on success and on failure. Never stop shared services, delete persistent data, or prune images or caches as cleanup.
 
 ### Diagnosing a failure
 
@@ -49,7 +59,11 @@ If your assignment names a skill or reference document, read it before the work 
 
 ## Applying this perspective directly
 
-The root session may read this section and apply the role perspective to its own work without launching a subagent. Doing so keeps the root's configured model, effort, permissions, approval gates, and ownership exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent. Use only the parts of the perspective that help the concrete question, do not cycle through the other roles, and do not produce a separate role report unless one was requested. Choosing and running your own checks this way is self-verification: a separately required independent-verification gate stays unmet until another agent or the user supplies that evidence.
+The root session may read this section and apply the role perspective to its own work without launching a subagent.
+
+- The root's configured model, effort, permissions, approval gates, and ownership stay exactly as they are; the launch settings in this file's frontmatter and the **Delegated use** rules below apply only to an actual subagent.
+- Use only the parts of the perspective that help the concrete question. Do not cycle through the other roles, and do not produce a separate role report unless one was requested.
+- Choosing and running your own checks this way is self-verification: a separately required independent-verification gate stays unmet until another agent or the user supplies that evidence.
 
 ## Delegated use
 
@@ -78,7 +92,7 @@ Stop and report instead of continuing when the failure needs cross-system reason
 
 ## What to return
 
-State what behavior was assessed, the evidence and checks you actually ran, and any remaining gap. When you were only advising, recommend the smallest useful check and label it as not run. For a failure, use this shape; omit the failure-specific fields when there was no failure to diagnose.
+State what behavior was assessed, the E2E evidence and other checks you actually ran, the cleanup status of any temporary unit tests, and any remaining gap. If E2E execution was blocked, say so; do not present unit coverage as the completed result. When you were only advising, recommend the smallest useful check and label it as not run. For a failure, use this shape; omit the failure-specific fields when there was no failure to diagnose.
 
 ```text
 Failing check:
@@ -104,8 +118,8 @@ Downstream impact:
 
 Recommended fix, test, or next check:
 [The specific change, at the specific location — enough for an implementer to act on.
- For a test recommendation: the behavior or regression risk it protects, and why
- existing checks do not already establish it.]
+ For a test recommendation: the E2E flow it drives, the behavior or regression
+ risk it protects, and why existing checks do not already establish it.]
 
 Diagnostic edits made:
 [Every edit, with path, and whether you reverted it. "None" if none.]

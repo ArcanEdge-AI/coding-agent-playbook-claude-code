@@ -15,7 +15,6 @@
 <p align="center">
   <a href="#install-with-one-prompt">Install</a> ·
   <a href="#quick-start">Quick Start</a> ·
-  <a href="#harness-editions">Harness Editions</a> ·
   <a href="#why-this-exists">Why This Exists</a> ·
   <a href="#whats-inside">What's Inside</a> ·
   <a href="#subagent-model">Subagent Model</a> ·
@@ -26,6 +25,7 @@
   <a href="#coordinating-parallel-claude-code-sessions">Parallel Sessions</a> ·
   <a href="#handing-off-to-a-fresh-session">Handoff</a> ·
   <a href="#end-of-work-cleanup">Cleanup</a> ·
+  <a href="#local-validation-before-remote-ci">Local Preflight</a> ·
   <a href="#repository-structure">Structure</a>
 </p>
 
@@ -34,14 +34,8 @@
   <img src="https://img.shields.io/badge/Subagents-Optional-00C2FF" alt="Subagents Optional" />
   <img src="https://img.shields.io/badge/Sessions-Coordinated-4ECDC4" alt="Sessions Coordinated" />
   <img src="https://img.shields.io/badge/Instructions-Tool--Agnostic-8A5CFF" alt="Instructions Tool Agnostic" />
-  <a href="https://github.com/ArcanEdge-AI/coding-agent-playbook-codex"><img src="https://img.shields.io/badge/Codex-Edition-D97706" alt="Codex Edition" /></a>
   <img src="https://img.shields.io/badge/License-MIT-2ECC71" alt="MIT License" />
   <img src="https://img.shields.io/badge/Status-Active-2ECC71" alt="Status Active" />
-</p>
-
-<p align="center">
-  <strong>Using Codex instead?</strong>
-  <a href="https://github.com/ArcanEdge-AI/coding-agent-playbook-codex">Open the Codex edition</a>.
 </p>
 
 ---
@@ -110,19 +104,6 @@ Save it as `CLAUDE.md` at the project root, then fill in the actual build comman
 
 ---
 
-## Harness Editions
-
-Coding Agent Playbook ships as separate harness-native editions. This repository is the Claude Code edition.
-
-| Edition | Repository | Use when |
-| --- | --- | --- |
-| Claude Code | `ArcanEdge-AI/coding-agent-playbook-claude-code` | You want global Claude Code instructions, self-contained skill packages, and subagent definitions. |
-| Codex | [`ArcanEdge-AI/coding-agent-playbook-codex`](https://github.com/ArcanEdge-AI/coding-agent-playbook-codex) | You want the harness-native edition tuned for Codex. |
-
-The philosophy is shared across both: the root agent acts as the senior engineer and primary implementer, bounded helpers provide evidence-backed assistance only where it has a concrete benefit, independent project sessions are coordinated explicitly, and final decisions stay with the root agent.
-
----
-
 ## Why This Exists
 
 AI coding agents are powerful, but they often fail in predictable ways:
@@ -160,9 +141,30 @@ The intent is not to make the agent slower for its own sake. The intent is to ma
 | Installer | `install/` | One standard-library Python installer, thin Bash and PowerShell launchers, and the support-only pointer text. |
 | Global instructions | `custom-instructions/` | Tool-agnostic behavior rules for elegant, maintainable code. Paste into your global `CLAUDE.md`. |
 | Prompts | `claude-prompts/` | Setup and active-project coordination prompts. |
-| Skills | `skills/` | Ten self-contained packages — task-graph, subagent, worktree, and feature-branch orchestration, session coordination, handoff to a fresh session, end-of-work cleanup, legacy-path retirement, document routing, and senior review — each shipping the references and templates it depends on: the approved helper routes, delegation rules, the engineering-design decision aid, worktree lifecycle, the branching rule, session coordination, the handoff context contract, the cleanup methodology, and the repository documentation templates. |
+| Workflow skills | `skills/` | Eleven self-contained packages — local CI preflight, task-graph, subagent, worktree, and feature-branch orchestration, session coordination, handoff to a fresh session, end-of-work cleanup, legacy-path retirement, document routing, and senior review — each shipping the references, templates, and assets it depends on: the local validation contract, the approved helper routes, delegation rules, the engineering-design decision aid, worktree lifecycle, the branching rule, session coordination, the handoff context contract, the cleanup methodology, and the repository documentation templates. |
+| AWS local preflight | [`aws-local-preflight`](skills/aws-local-preflight/SKILL.md) | Moto-first local coverage and fail-closed endpoint isolation for complete local application flows; extends the local CI contract and reports what still needs real AWS acceptance. |
+| Repository reviews | [`multi-role-repo-review`](skills/multi-role-repo-review/SKILL.md), [`technical-debt-auditor`](skills/technical-debt-auditor/SKILL.md) | Evidence-backed cross-functional reviews and resumable technical-debt audits. |
+| Platform documentation | [`platform-documentation`](skills/platform-documentation/SKILL.md) | Discover behavior from the implementation, then write or correct documentation for its readers. |
+| Production readiness | [`production-pass-orchestrator`](skills/production-pass-orchestrator/SKILL.md), [`production-readiness-report`](skills/production-readiness-report/SKILL.md), and eleven specialist lanes | Evidence-backed assessments, scoped remediation, release gates, and client-facing reports across the complete production flow. |
 | Role definitions | `agents/` | Six Claude Code definitions — exploration, documentation, triage, implementation, review, and fan-out coordination — each usable as a perspective the root applies directly or as a bounded subagent assignment. |
+| Companion plugins | [`INSTALL.md`](INSTALL.md#companion-plugins), [`THIRD_PARTY.md`](THIRD_PARTY.md) | Intuitive Software Design, Impeccable, Taste, and Humanizer, installed from their official Claude distributions — the Anthropic Directory or each project's Claude Code plugin marketplace. Not bundled, and not installed by this playbook. |
 | Repository guidance | `CLAUDE.md` | Instructions for maintaining this public playbook repository. |
+
+The installer ships 28 skill packages. The eleven production specialist lanes are:
+
+| Skill | Focus |
+| --- | --- |
+| [`production-api-integration`](skills/production-api-integration/SKILL.md) | API contracts and integration failures |
+| [`production-architecture-review`](skills/production-architecture-review/SKILL.md) | Architecture and dependency boundaries |
+| [`production-code-quality`](skills/production-code-quality/SKILL.md) | Maintainability and code quality |
+| [`production-database-integrity`](skills/production-database-integrity/SKILL.md) | Persistence, migration, and data integrity |
+| [`production-devops-release`](skills/production-devops-release/SKILL.md) | CI/CD, deployment, and rollback readiness |
+| [`production-documentation-onboarding`](skills/production-documentation-onboarding/SKILL.md) | Documentation and developer onboarding |
+| [`production-performance-review`](skills/production-performance-review/SKILL.md) | Performance and scalability |
+| [`production-reliability-observability`](skills/production-reliability-observability/SKILL.md) | Reliability and operational evidence |
+| [`production-security-review`](skills/production-security-review/SKILL.md) | Security and access control |
+| [`production-testing-qa`](skills/production-testing-qa/SKILL.md) | E2E coverage and validation confidence |
+| [`production-ux-accessibility`](skills/production-ux-accessibility/SKILL.md) | Usability and accessibility |
 
 ---
 
@@ -186,7 +188,17 @@ Support-only mode avoids duplicating the full instruction file and installs only
 
 Understand the whole affected flow — entry points, shared behavior, business rules, data changes, consumers, success and failure outcomes — and improve the existing implementation by default. A substantial replacement needs evidence of a significant benefit that justifies its implementation, migration, verification, and maintenance costs; another possible design, or an alpha label, is not that evidence. Unnecessary abstractions, speculative compatibility, and redundant tests are maintainability defects.
 
-Test proportionately. Use the smallest meaningful checks, keep lasting tests for important behavior and realistic regression risks — a focused unit test for a lasting business rule is exactly right — and, as the approach changes, update or remove the tests that only preserved an abandoned partial fix. Required checks, supported contracts, data preservation, and correctness safeguards still apply in full.
+Retain only end-to-end (E2E) behavioral tests: tests that drive a complete supported UI, API, or CLI flow through its real entry point. Every unit test the work creates is temporary, whatever its purpose:
+
+1. Carry its still-required assertions, meaningful failures, and boundary cases into passing E2E coverage. A mocked component check or a happy path alone is not enough.
+2. Remove the created unit tests and the support code only they used before calling the work complete.
+3. If replacement coverage or cleanup is unfinished, report it as unfinished. Do not declare completion.
+
+Use the smallest meaningful checks, and reuse existing E2E coverage and still-valid results. Build, lint, type checking, static validation, required repository gates, supported contracts, and data-preservation safeguards still apply in full. Existing non-E2E suites migrate only within authorized scope, after their replacement coverage passes; nothing is bulk-deleted.
+
+Runtime environments are recovered before they are replaced. Reuse the established containers, browsers, and virtualized environments; recover them in dependency order with at most two recovery cycles unless a project runbook sets another finite limit; start browser tests with one worker when safe capacity is unverified or heavy jobs already overlap; and tear down only what the task itself started.
+
+Agent-facing instructions are written with STE-inspired clarity: one main instruction per sentence, explicit actors and conditions, and consistent terms, keeping exact identifiers and every consequential qualifier. This is an authoring approach, not a claim of ASD-STE100 compliance, and it imposes no restricted dictionary or sentence-length limit on technical content.
 
 The root Claude Code session is the senior engineer and the primary implementer.
 
@@ -507,7 +519,7 @@ The project's own validation pipeline
 Cleaned Up · Validation · Problems Found · Remaining Issues · Final State
 ```
 
-Compatibility code needs evidence. Code introduced and superseded within an unmerged branch never shipped, so it goes; compatibility code older than the work goes through `legacy-path-retirement` first. Unrelated changes, including another session's, are preserved. The pass uses no destructive git commands, commits nothing on its own initiative, and routes branch deletion and worktree removal to their own lifecycle skills.
+Compatibility code needs evidence. Code introduced and superseded within an unmerged branch never shipped, so it goes; compatibility code older than the work goes through `legacy-path-retirement` first. Unrelated changes, including another session's, are preserved. The pass uses no destructive git commands, commits nothing on its own initiative, and routes branch deletion and worktree removal to their own lifecycle skills. It also reconciles the runtime resources the task started or recovered, and closes only the ones the task owns.
 
 Supporting files:
 
@@ -515,6 +527,26 @@ Supporting files:
 skills/session-cleanup/SKILL.md
 skills/session-cleanup/references/post-session-cleanup-methodology.md
 ```
+
+---
+
+## Local Validation Before Remote CI
+
+Before a push, a pull request, or a remote CI run, the `local-ci-preflight` skill runs the project's own checks locally, from a project contract in `LOCAL_VALIDATION.md`:
+
+```text
+Inspect the project's real validation commands
+    ↓
+Cheap checks first: format, lint, type checks, static validation
+    ↓
+Builds, then the complete affected E2E profiles
+    ↓
+Local evidence, reported separately from remote acceptance
+```
+
+Adapt the bundled [local validation contract](skills/local-ci-preflight/assets/LOCAL_VALIDATION.template.md) to the commands you inspected. It ships as `NOT_CONFIGURED`, and an unconfigured or skipped required check is a gap, never a pass. Merge the [project `CLAUDE.md` snippet](skills/local-ci-preflight/assets/claude-md-local-validation.md) only where the global instructions do not already route local validation. When AWS is in scope, the `aws-local-preflight` skill adds Moto-first coverage, fail-closed endpoint isolation so no request reaches real AWS, and an explicit list of what still needs real AWS acceptance.
+
+Local success does not replace remote acceptance. Neither skill grants authority to push, open a pull request, deploy, call AWS or other cloud services, start shared services, dispatch remote CI, or spend.
 
 ---
 
@@ -528,7 +560,7 @@ The root session should:
 2. Read only relevant sections when possible.
 3. Classify docs as authoritative, advisory, or historical.
 4. Pass only relevant context to subagents or active project sessions.
-5. Resolve conflicts using primary evidence.
+5. Resolve instruction conflicts by authority. Use primary evidence to establish current behavior, not to override an authorized target requirement.
 
 Primary evidence includes current code, tests, schemas, configuration, logs, build output, typecheck output, runtime behavior, relevant session evidence, and authoritative external documentation.
 
@@ -554,6 +586,7 @@ skills/reference-doc-routing/references/README.md
 ├── INSTALL.md
 ├── LICENSE
 ├── README.md
+├── THIRD_PARTY.md
 ├── .github/
 │   ├── ISSUE_TEMPLATE/
 │   │   ├── bug_report.md
@@ -584,6 +617,12 @@ skills/reference-doc-routing/references/README.md
 ├── scripts/
 │   └── validate.sh
 └── skills/
+    ├── aws-local-preflight/
+    │   ├── SKILL.md
+    │   ├── assets/
+    │   │   └── LOCAL_VALIDATION.aws.template.md
+    │   └── references/
+    │       └── moto-boundaries.md
     ├── feature-branch-lifecycle/
     │   ├── SKILL.md
     │   └── references/
@@ -594,12 +633,60 @@ skills/reference-doc-routing/references/README.md
     │       └── context-contract.md
     ├── legacy-path-retirement/
     │   └── SKILL.md
+    ├── local-ci-preflight/
+    │   ├── SKILL.md
+    │   └── assets/
+    │       ├── LOCAL_VALIDATION.template.md
+    │       └── claude-md-local-validation.md
+    ├── multi-role-repo-review/
+    │   └── SKILL.md
     ├── multi-session-coordination/
     │   ├── SKILL.md
     │   └── references/
     │       ├── multi-session-coordination.md
     │       └── templates/
     │           └── active-work-record.md
+    ├── platform-documentation/
+    │   ├── SKILL.md
+    │   ├── references/
+    │   │   ├── authoring.md
+    │   │   ├── discovery.md
+    │   │   └── evidence-maintenance.md
+    │   └── scripts/
+    │       ├── check_reader_treatments.py
+    │       └── check_source_paths.py
+    ├── production-api-integration/
+    │   └── SKILL.md
+    ├── production-architecture-review/
+    │   └── SKILL.md
+    ├── production-code-quality/
+    │   └── SKILL.md
+    ├── production-database-integrity/
+    │   └── SKILL.md
+    ├── production-devops-release/
+    │   └── SKILL.md
+    ├── production-documentation-onboarding/
+    │   └── SKILL.md
+    ├── production-pass-orchestrator/
+    │   └── SKILL.md
+    ├── production-performance-review/
+    │   └── SKILL.md
+    ├── production-readiness-report/
+    │   ├── SKILL.md
+    │   ├── assets/
+    │   │   └── report-template.md
+    │   ├── references/
+    │   │   └── evidence-lanes.md
+    │   └── scripts/
+    │       └── validate_readiness_report.py
+    ├── production-reliability-observability/
+    │   └── SKILL.md
+    ├── production-security-review/
+    │   └── SKILL.md
+    ├── production-testing-qa/
+    │   └── SKILL.md
+    ├── production-ux-accessibility/
+    │   └── SKILL.md
     ├── reference-doc-routing/
     │   ├── SKILL.md
     │   └── references/
@@ -631,6 +718,15 @@ skills/reference-doc-routing/references/README.md
     │   └── references/
     │       └── templates/
     │           └── task-graph.md
+    ├── technical-debt-auditor/
+    │   ├── SKILL.md
+    │   ├── assets/
+    │   │   ├── audit-ledger.csv
+    │   │   └── audit-report.md
+    │   ├── references/
+    │   │   └── technical-debt-audit-methodology.md
+    │   └── scripts/
+    │       └── audit_coverage.py
     └── worktree-lifecycle/
         ├── SKILL.md
         └── references/
@@ -746,7 +842,7 @@ See `CONTRIBUTING.md` for contribution guidance.
 
 ## License
 
-MIT — see [`LICENSE`](./LICENSE).
+MIT — see [`LICENSE`](./LICENSE). Companion plugins install from their own sources under their own licenses; see [`THIRD_PARTY.md`](./THIRD_PARTY.md).
 
 ---
 
